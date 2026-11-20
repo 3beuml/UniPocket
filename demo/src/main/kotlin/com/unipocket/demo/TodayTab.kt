@@ -25,6 +25,7 @@ fun TodayTab(modifier: Modifier = Modifier) {
     val config = FakeData.config
     val source = remember { FakeScheduleSource() }
     val viewModel: ScheduleViewModel = viewModel(
+        key = "today",
         factory = ScheduleViewModel.factory(config, source),
     )
     val state by viewModel.state.collectAsStateWithLifecycle()

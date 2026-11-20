@@ -1,6 +1,7 @@
 package com.unipocket.ui.schedule
 
 import com.unipocket.domain.Course
+import com.unipocket.domain.EditableScheduleSource
 import com.unipocket.domain.ScheduleSource
 import com.unipocket.domain.SchoolConfig
 import com.unipocket.domain.UniPocketException
@@ -32,6 +33,11 @@ class ScheduleStore(
     private val scope: CoroutineScope,
     /** 注入时钟，便于测试"今天在第几周" */
     private val clock: () -> LocalDate = { LocalDate.now() },
+    /**
+     * 编辑通道。读取走 [source]（可能是合并后的多个来源），
+     * 补录/删除走这里（手动补录源）——两者刻意分开，避免"合并源不可编辑"把编辑静默吞掉。
+     */
+    private val editableSource: EditableScheduleSource? = null,
 ) {
 
     private val _state = MutableStateFlow(
@@ -80,6 +86,29 @@ class ScheduleStore(
     fun previousWeek() = setWeek(_state.value.week - 1)
 
     fun goToToday() = setWeek(initialWeek())
+
+    /**
+     * 手动补录/编辑。仅在数据源实现 [EditableScheduleSource] 时生效；
+     * 写入成功后强制刷新，失败时把错误放进 [ScheduleUiState.error]（不清空已有课表）。
+     */
+    fun upsertCourse(course: Course) = edit { it.upsert(course) }
+
+    /** 删除一节课；语义同 [upsertCourse] */
+    fun deleteCourse(id: String) = edit { it.delete(id) }
+
+    private fun edit(block: suspend (EditableScheduleSource) -> Unit) {
+        val editable = editableSource ?: (source as? EditableScheduleSource) ?: return
+        scope.launch {
+            try {
+                block(editable)
+                load(force = true)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                _state.update { it.copy(error = e.toUniPocketException()) }
+            }
+        }
+    }
 
     private fun load(force: Boolean) {
         if (loadJob?.isActive == true) return

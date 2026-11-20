@@ -309,6 +309,29 @@ AppBackground(painter = painter, dim = prefs.backgroundDim) { AppShell(…) }
 （重启后仍可读），`repository.setBackgroundUri(uri)` 存进框架偏好；`repository.setBackgroundUri(null)` 移除。
 不想让用户换背景，忽略这几个回调就行，核心页面不受影响。
 
+## 4.9 手动补录/编辑（可选）
+
+补录是一个独立的数据源：实现 `EditableScheduleSource`（新增/删除/是否管理该 id），
+持久化完全归你。然后把「合并后的读取来源」和「编辑来源」分开交给 ViewModel：
+
+```kotlin
+val manual = remember { MyManualSource(store) }          // EditableScheduleSource
+val source = remember { MergedScheduleSource(EasSource(), manual) }
+val vm: ScheduleViewModel = viewModel(
+    key = "timetable",                                    // ⚠️ 同一个 ViewModel 类在多个 Tab 使用时必须给 key
+    factory = ScheduleViewModel.factory(config, source, editableSource = manual),
+)
+```
+
+- 补录：`vm.upsertCourse(course)`——保存后自动刷新；
+- 删除：`vm.deleteCourse(id)`；
+- 详情页"编辑/删除"按钮会依据 `manages(id)` 显示，只有补录来源的课可编辑；
+- 编辑**教务课**（覆盖教室/时间）v0.1 不支持，需要覆盖层概念。
+
+demo 的 `ManualCourseSource`（JSON 存 SharedPreferences）可以直接抄。
+
+周次自定义输入用 `parseWeeksText("1-8,10-16")` 解析，非法输入整体拒绝。
+
 ---
 
 ## 5. 自检清单

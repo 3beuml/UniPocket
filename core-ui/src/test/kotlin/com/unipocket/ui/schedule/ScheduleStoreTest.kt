@@ -1,6 +1,7 @@
 package com.unipocket.ui.schedule
 
 import com.unipocket.domain.Course
+import com.unipocket.domain.EditableScheduleSource
 import com.unipocket.domain.Period
 import com.unipocket.domain.ScheduleSource
 import com.unipocket.domain.SchoolConfig
@@ -75,7 +76,7 @@ class ScheduleStoreTest {
             override suspend fun loadCourses(): List<Course> =
                 throw UniPocketException.Network("连不上教务")
         }
-        val store = ScheduleStore(config, failing, this) { today }
+        val store = ScheduleStore(config, failing, this, clock = { today })
 
         store.start()
         advanceUntilIdle()
@@ -96,7 +97,7 @@ class ScheduleStoreTest {
                 return listOf(course("a", setOf(2)))
             }
         }
-        val store = ScheduleStore(config, flaky, this) { today }
+        val store = ScheduleStore(config, flaky, this, clock = { today })
 
         store.start()
         advanceUntilIdle()
@@ -134,7 +135,7 @@ class ScheduleStoreTest {
 
     @Test
     fun `goToToday 回到当前周`() = runTest {
-        val store = ScheduleStore(config, source(), this) { today }
+        val store = ScheduleStore(config, source(), this, clock = { today })
 
         store.start()
         advanceUntilIdle()
@@ -153,7 +154,7 @@ class ScheduleStoreTest {
             override val id = "test"
             override suspend fun loadCourses(): List<Course> = throw IllegalStateException("解析炸了")
         }
-        val store = ScheduleStore(config, broken, this) { today }
+        val store = ScheduleStore(config, broken, this, clock = { today })
 
         store.start()
         advanceUntilIdle()
@@ -161,5 +162,58 @@ class ScheduleStoreTest {
         val error = store.state.value.error
         assertTrue(error is UniPocketException.Unknown)
         assertEquals("解析炸了", error?.message)
+    }
+
+    private class EditableSource : EditableScheduleSource {
+        val stored = mutableListOf<Course>()
+        override val id = "manual"
+        override suspend fun loadCourses(): List<Course> = stored.toList()
+        override suspend fun upsert(course: Course) {
+            stored.removeAll { it.id == course.id }
+            stored += course
+        }
+        override suspend fun delete(id: String) {
+            stored.removeAll { it.id == id }
+        }
+        override suspend fun manages(id: String): Boolean = stored.any { it.id == id }
+    }
+
+    @Test
+    fun `补录后自动刷新并出现在当前周`() = runTest {
+        val store = ScheduleStore(config, EditableSource(), this, clock = { today })
+        store.start()
+        advanceUntilIdle()
+        assertTrue(store.state.value.courses.isEmpty())
+
+        store.upsertCourse(course("m1", weeks = setOf(2)))
+        advanceUntilIdle()
+
+        assertEquals(listOf("m1"), store.state.value.courses.map { it.id })
+    }
+
+    @Test
+    fun `删除后刷新移除`() = runTest {
+        val store = ScheduleStore(config, EditableSource(), this, clock = { today })
+        store.start()
+        advanceUntilIdle()
+
+        store.upsertCourse(course("m1", weeks = setOf(2)))
+        advanceUntilIdle()
+        store.deleteCourse("m1")
+        advanceUntilIdle()
+
+        assertTrue(store.state.value.courses.isEmpty())
+    }
+
+    @Test
+    fun `数据源不支持编辑时编辑调用被忽略`() = runTest {
+        val store = ScheduleStore(config, source(course("a", setOf(2))), this, clock = { today })
+        store.start()
+        advanceUntilIdle()
+
+        store.upsertCourse(course("x", weeks = setOf(2)))
+        advanceUntilIdle()
+
+        assertEquals(listOf("a"), store.state.value.courses.map { it.id })
     }
 }

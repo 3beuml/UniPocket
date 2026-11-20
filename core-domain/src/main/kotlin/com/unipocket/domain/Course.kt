@@ -61,6 +61,33 @@ data class Course(
 /** 只保留本周有课的条目 */
 fun List<Course>.inWeek(week: Int): List<Course> = filter { it.isInWeek(week) }
 
+/** [1,2,3,5,6] -> "1-3,5-6"；用于展示与编辑框的周次文本 */
+fun weeksToText(weeks: Collection<Int>): String = weeks.sorted().toRangesText()
+
+/**
+ * "1-16" / "1,3,5-7" / "2 4 6" → 周次集合；无法解析返回 null。
+ *
+ * 编辑框的周次自定义输入用它解析：任何非法片段（负数、倒序、非数字）
+ * 都整体拒绝，不做"尽量解析"，避免用户以为存上了实际没存上。
+ */
+fun parseWeeksText(text: String): Set<Int>? {
+    val trimmed = text.trim()
+    if (trimmed.isEmpty()) return null
+
+    val result = mutableSetOf<Int>()
+    for (token in trimmed.split(Regex("[,，、\\s]+"))) {
+        if (token.isBlank()) continue
+        val match = WEEK_TOKEN.find(token) ?: return null
+        val start = match.groupValues[1].toInt()
+        val end = match.groupValues[3].ifEmpty { match.groupValues[1] }.toInt()
+        if (start < 1 || end < start) return null
+        result += start..end
+    }
+    return result.takeIf { it.isNotEmpty() }
+}
+
+private val WEEK_TOKEN = Regex("^(\\d+)(-(\\d+))?$")
+
 /** [1,2,3,5,6] -> "1-3,5-6" */
 internal fun List<Int>.toRangesText(): String {
     if (isEmpty()) return ""
