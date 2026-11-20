@@ -260,6 +260,8 @@ WeekTimetable(
 3. `demo/MainActivity.kt`：删掉 `AppTab(id = "rooms", …)` 与 `when` 里的对应分支，
    并删除 `demo/.../RoomTab.kt`
 
+`feature-settings`、`feature-focus` 同理（各删自己的 include / 依赖 / tab / `*Tab.kt`）。
+
 删完直接 `./gradlew :demo:assembleDebug` 即可，不需要动其它文件。
 
 > 已验证：去掉 `feature-room` 后工程可独立构建（构建任务从 104 个降到 73 个）。

@@ -39,6 +39,7 @@ dependencies {
     implementation(project(":core-ui"))
     implementation(project(":feature-room"))
     implementation(project(":feature-settings"))
+    implementation(project(":feature-focus"))
     implementation(project(":widget"))
 
     implementation(libs.androidx.core.ktx)
