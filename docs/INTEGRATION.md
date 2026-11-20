@@ -208,3 +208,19 @@ RoomScreen(config, state, onDaySelected = vm::setDayOfWeek, onPeriodSelected = v
 - [ ] 公共仓库里 `grep -ri zzu`（或你学校的标识）没有任何命中
 
 最后一条由 CI 自动检查（见 `.github/workflows/ci.yml`）。
+
+---
+
+## 6. 去掉不需要的模块
+
+框架里**只有课表页是必选的**。其它页面（空教室、将来的设置/番茄钟）都是独立模块，
+不需要时删三处即可，代码完全不参与构建、也不进 APK：
+
+1. `settings.gradle.kts`：删掉 `include(":feature-room")`
+2. `demo/build.gradle.kts`：删掉 `implementation(project(":feature-room"))`
+3. `demo/MainActivity.kt`：删掉 `AppTab(id = "rooms", …)` 与 `when` 里的对应分支，
+   并删除 `demo/.../RoomTab.kt`
+
+删完直接 `./gradlew :demo:assembleDebug` 即可，不需要动其它文件。
+
+> 已验证：去掉 `feature-room` 后工程可独立构建（构建任务从 104 个降到 73 个）。

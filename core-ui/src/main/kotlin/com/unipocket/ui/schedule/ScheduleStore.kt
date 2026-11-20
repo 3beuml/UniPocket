@@ -5,7 +5,7 @@ import com.unipocket.domain.ScheduleSource
 import com.unipocket.domain.SchoolConfig
 import com.unipocket.domain.UniPocketException
 import com.unipocket.domain.inWeek
-import com.unipocket.ui.common.toUniPocketException
+import com.unipocket.domain.toUniPocketException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job

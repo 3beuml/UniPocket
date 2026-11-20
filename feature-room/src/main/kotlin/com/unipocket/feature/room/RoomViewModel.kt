@@ -1,4 +1,4 @@
-package com.unipocket.ui.room
+package com.unipocket.feature.room
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider

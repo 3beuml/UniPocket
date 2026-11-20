@@ -24,9 +24,15 @@
 ## 它提供什么
 
 - `core-domain` — 契约模型与接口（`Course`、`Semester`、`Period`、`LocationNode`、`SchoolConfig`、`ScheduleSource`、`RoomSource`、偏好读写接口、统一错误类型）。**不含数据库、不含网络实现。**
-- `core-ui` — 无状态 Compose 组件 + 官方 ViewModel（课表网格、周翻页、今天时间轴、空教室页、显示/外观设置、番茄钟），加一个可配置的 `AppShell(tabs = …)`。
-- `widget` — 桌面小组件（课表、今天），RemoteViews 纯布局函数。
+- `core-ui` — **必选基础**：无状态 Compose 组件 + 官方 ViewModel（课表网格、周翻页、课程详情、错误/加载/空态）+ 可配置 `AppShell(tabs = …)` + 主题。
+- `feature-room` — 空教室页（**可选模块**）。
+- `widget` — 桌面小组件（课表、今天），RemoteViews 纯布局函数（**可选模块**，待实现）。
 - `demo` — 假数据可运行 App。**外校 fork 的起点。**
+
+> **可选模块怎么用**：不是每所学校都需要的页面，都是独立的 Gradle 模块。不要时删掉
+> `settings.gradle.kts` 里的 `include(":feature-xxx")`、`demo/build.gradle.kts` 里的依赖、
+> 以及底栏里对应的 tab 即可——这个模块**完全不参与构建，也不进 APK**。
+> 后续的设置页、番茄钟也会按这个规则拆成独立模块。
 
 ## 接入你学校需要做什么
 

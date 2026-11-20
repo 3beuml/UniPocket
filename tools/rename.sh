@@ -96,8 +96,15 @@ echo "新包名: $NEW_PACKAGE"
 echo
 
 # ── 1. 移动源码目录 ──────────────────────────────────────────────────
+# 模块列表从 settings.gradle.kts 动态读取，新增模块不用改脚本
+modules=$(sed -n 's/.*include(":\([A-Za-z0-9_.-]*\)").*/\1/p' settings.gradle.kts)
+if [[ -z "$modules" ]]; then
+  echo "错误：没能从 settings.gradle.kts 读到模块列表。" >&2
+  exit 1
+fi
+
 moved=0
-for module in core-domain core-ui widget demo; do
+for module in $modules; do
   for src in src/main src/test src/androidTest; do
     old="$module/$src/kotlin/$OLD_PATH"
     [[ -d "$old" ]] || continue

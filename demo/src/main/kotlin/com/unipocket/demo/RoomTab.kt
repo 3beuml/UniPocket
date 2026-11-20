@@ -7,8 +7,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.unipocket.ui.room.RoomScreen
-import com.unipocket.ui.room.RoomViewModel
+import com.unipocket.feature.room.RoomScreen
+import com.unipocket.feature.room.RoomViewModel
 
 /**
  * 空教室页：数据经由官方 [RoomViewModel] 加载。

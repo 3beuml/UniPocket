@@ -1,4 +1,4 @@
-package com.unipocket.ui.room
+package com.unipocket.feature.room
 
 import com.unipocket.domain.LocationNode
 import com.unipocket.domain.UniPocketException

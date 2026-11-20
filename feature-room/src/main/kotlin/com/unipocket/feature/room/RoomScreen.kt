@@ -1,4 +1,4 @@
-package com.unipocket.ui.room
+package com.unipocket.feature.room
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

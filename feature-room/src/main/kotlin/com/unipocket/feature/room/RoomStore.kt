@@ -1,9 +1,9 @@
-package com.unipocket.ui.room
+package com.unipocket.feature.room
 
 import com.unipocket.domain.LocationNode
 import com.unipocket.domain.RoomSource
 import com.unipocket.domain.SchoolConfig
-import com.unipocket.ui.common.toUniPocketException
+import com.unipocket.domain.toUniPocketException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
