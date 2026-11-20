@@ -58,7 +58,7 @@ jobs:
       - name: 单元测试
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon :core-domain:test
+          ./gradlew --no-daemon :core-domain:test :core-ui:testDebugUnitTest
 
       - name: 编译 demo
         run: ./gradlew --no-daemon :demo:assembleDebug
