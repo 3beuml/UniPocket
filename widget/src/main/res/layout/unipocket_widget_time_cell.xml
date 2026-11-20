@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 时间列的一行：节次序号 + 开始时刻 -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/time_text"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:gravity="center"
+    android:lineSpacingExtra="1dp"
+    android:maxLines="2"
+    android:textSize="8sp" />

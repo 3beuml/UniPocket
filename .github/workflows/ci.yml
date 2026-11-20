@@ -59,7 +59,7 @@ jobs:
         run: |
           chmod +x gradlew
           # 新增模块时记得把它的单元测试任务加进来
-          ./gradlew --no-daemon :core-domain:test :core-ui:testDebugUnitTest :feature-room:testDebugUnitTest :feature-focus:testDebugUnitTest
+          ./gradlew --no-daemon :core-domain:test :core-ui:testDebugUnitTest :feature-room:testDebugUnitTest :feature-focus:testDebugUnitTest :widget:testDebugUnitTest
 
       - name: 编译 demo
         run: ./gradlew --no-daemon :demo:assembleDebug

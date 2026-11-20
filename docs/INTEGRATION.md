@@ -247,6 +247,51 @@ WeekTimetable(
 
 ---
 
+## 4.7 桌面组件（可选）
+
+`widget` 模块只提供 **RemoteViews 渲染器**与行高账本，不取数据。App 里需要一个
+`AppWidgetProvider` 负责「取课表 → 调渲染器 → updateAppWidget」：
+
+```kotlin
+class MyWeekWidget : AppWidgetProvider() {
+    override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
+        ids.forEach { id ->
+            val pending = goAsync()
+            CoroutineScope(Dispatchers.Default).launch {
+                try {
+                    val config = MyConfig
+                    val courses = MyScheduleSource().loadCourses()
+                    val week = config.semester.currentWeek() ?: 1
+                    val options = manager.getAppWidgetOptions(id)
+                    val width = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH).toFloat()
+                    val height = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT).toFloat()
+                    val views = WeekWidgetRenderer.render(
+                        context, config, courses, week, width, height,
+                        WidgetStyle(dark = isNightMode(context)),
+                    )
+                    manager.updateAppWidget(id, views)
+                } finally {
+                    pending.finish()
+                }
+            }
+        }
+    }
+}
+```
+
+再补 `res/xml/week_widget_info.xml` 与 manifest 里的 `<receiver>`（照抄 demo 的
+`WeekWidgetProvider` / `week_widget_info.xml` 即可）。
+
+**改尺寸验证**：`WidgetPreviewActivity` 可以在不装桌面的情况下按任意尺寸预览：
+
+```bash
+adb shell am start -n <你的包名>/.WidgetPreviewActivity --ei width 342 --ei height 380
+```
+
+注意两个真机结论（已写进 `widget` 模块的实现）：
+- 组件尺寸上报**虚高约 30dp**，账本会先扣掉；
+- 行高按课名实际行数计算，装不下就少画一行——**绝不压缩到裁字**。
+
 ## 5. 自检清单
 
 - [ ] `./gradlew :core-domain:test` 与 `./gradlew :core-ui:test` 全绿

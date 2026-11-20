@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 空课位：只占高度，不画东西（RemoteViews 不允许裸 View，用 FrameLayout） -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/empty_root"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content" />
