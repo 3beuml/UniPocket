@@ -1,5 +1,7 @@
 # UniPocket
 
+[![CI](https://github.com/3beuml/UniPocket/actions/workflows/ci.yml/badge.svg)](https://github.com/3beuml/UniPocket/actions/workflows/ci.yml)
+
 校园课程表 UI 框架——给「想做自己学校校园助手」的人一个**能跑起来的起点**。
 
 > 状态：**公开开发中，v0.1 尚未发布**（API 与目录结构仍可能变动，请勿直接用于生产）。
