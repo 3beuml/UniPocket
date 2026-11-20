@@ -1,7 +1,9 @@
 package com.unipocket.demo
 
 import com.unipocket.domain.Course
+import com.unipocket.domain.LocationNode
 import com.unipocket.domain.Period
+import com.unipocket.domain.RoomSource
 import com.unipocket.domain.ScheduleSource
 import com.unipocket.domain.SchoolConfig
 import com.unipocket.domain.Semester
@@ -14,7 +16,8 @@ import java.time.LocalTime
  *
  * 外校 fork 后的第一件事就是把这里换掉：
  * 1. 用本校真实的节次时间与学期起始日构造 [config]；
- * 2. 删掉 [courses]，改由自己的 `ScheduleSource` 提供。
+ * 2. 删掉 [courses]，改由自己的 `ScheduleSource` 提供；
+ * 3. 把 [FakeRoomSource] 换成真的空教室数据源（可选）。
  *
  * 假数据刻意覆盖了几种边界：周末有课、第 9 周才开课的课、第 17 周才开的课程设计、
  * 周次不连续的"形势与政策"，用来验证周次过滤与网格布局。
@@ -172,5 +175,62 @@ class FakeScheduleSource(
     override suspend fun loadCourses(): List<Course> {
         if (delayMillis > 0) delay(delayMillis)
         return FakeData.courses
+    }
+}
+
+/** 假地点树：主校区 → 3 栋楼 → 若干教室 */
+object FakeCampus {
+
+    private fun rooms(buildingId: String, vararg names: String): List<LocationNode> =
+        names.map { LocationNode(id = "$buildingId-$it", name = it, level = 2) }
+
+    val root: LocationNode = LocationNode(
+        id = "campus-main",
+        name = "主校区",
+        level = 0,
+        children = listOf(
+            LocationNode(
+                id = "building-1",
+                name = "1 号楼",
+                level = 1,
+                children = rooms("b1", "101", "102", "103", "104", "201", "202"),
+            ),
+            LocationNode(
+                id = "building-2",
+                name = "2 号楼",
+                level = 1,
+                children = rooms("b2", "101", "102", "201", "202", "301"),
+            ),
+            LocationNode(
+                id = "building-lab",
+                name = "实验楼",
+                level = 1,
+                children = rooms("lab", "A101", "A102", "A201"),
+            ),
+        ),
+    )
+}
+
+/**
+ * 假空教室数据源：用"教室号 + 星期 + 节次"做个确定性取模，
+ * 让每次查询有大约七成教室空闲，方便肉眼核对分组与筛选。
+ */
+class FakeRoomSource(
+    private val delayMillis: Long = 250,
+) : RoomSource {
+
+    override val id: String = "fake-rooms"
+
+    override suspend fun locations(): LocationNode = FakeCampus.root
+
+    override suspend fun freeRooms(week: Int, dayOfWeek: Int, periods: IntRange): List<LocationNode> {
+        if (delayMillis > 0) delay(delayMillis)
+        return FakeCampus.root.flatten()
+            .filter { it.isLeaf }
+            .filter { room ->
+                val number = room.name.filter { it.isDigit() }.toIntOrNull() ?: 0
+                (number + dayOfWeek + periods.first) % 4 != 0
+            }
+            .toList()
     }
 }

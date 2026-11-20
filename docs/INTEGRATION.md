@@ -173,6 +173,31 @@ Box(Modifier.weight(1f)) {
 
 ---
 
+## 4.5 可选：空教室页
+
+实现了 `RoomSource` 后，空教室页不需要再写代码——`RoomScreen` + `RoomViewModel` 直接可用：
+
+```kotlin
+class MyRoomSource : RoomSource {
+    override val id = "my-rooms"
+
+    override suspend fun locations(): LocationNode = /* 校区 → 楼 → 教室 的树 */
+
+    override suspend fun freeRooms(week: Int, dayOfWeek: Int, periods: IntRange): List<LocationNode> =
+        /* 返回该时段空闲的叶子节点（教室） */
+}
+```
+
+```kotlin
+val vm: RoomViewModel = viewModel(factory = RoomViewModel.factory(config, MyRoomSource()))
+val state by vm.state.collectAsStateWithLifecycle()
+RoomScreen(config, state, onDaySelected = vm::setDayOfWeek, onPeriodSelected = vm::setPeriod, onBuildingSelected = vm::setBuilding, onRetry = vm::retry)
+```
+
+不想提供这个能力时，把 `AppShell` 的 tabs 里 `"rooms"` 那一项删掉即可，其它页面不受影响。
+
+---
+
 ## 5. 自检清单
 
 - [ ] `./gradlew :core-domain:test` 与 `./gradlew :core-ui:test` 全绿
