@@ -171,6 +171,16 @@ Box(Modifier.weight(1f)) {
 
 到这里，课表页已经是你们学校的数据了。剩下的设置页、番茄钟、统计等，按需从上游搬或自己写。
 
+今天页可以直接复用同一份课程数据（`todayItems` 是纯函数，不额外请求）：
+
+```kotlin
+TodayScreen(
+    date = LocalDate.now(),
+    items = state.courses.todayItems(config, LocalDate.now().dayOfWeek.value, LocalTime.now()),
+    isLoading = state.isLoading,
+)
+```
+
 ---
 
 ## 4.5 可选：空教室页

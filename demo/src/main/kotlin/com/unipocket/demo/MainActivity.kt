@@ -26,6 +26,7 @@ import com.unipocket.ui.AppTab
 import com.unipocket.ui.UniPocketTheme
 
 private val demoTabs = listOf(
+    AppTab(id = "today", label = "今天"),
     AppTab(id = "schedule", label = "课表"),
     AppTab(id = "rooms", label = "空教室"),
     AppTab(id = "focus", label = "专注"),
@@ -89,13 +90,15 @@ private fun DemoApp() {
                 "rooms" -> RoomTab()
                 "focus" -> FocusTab()
                 "settings" -> SettingsTab(prefsRepository)
-                else -> TimetableTab(prefs = prefs)
+                "schedule" -> TimetableTab(prefs = prefs)
+                else -> TodayTab()
             }
         }
     }
 }
 
 private fun titleFor(tabId: String): String = when (tabId) {
+    "today" -> "今天"
     "rooms" -> "空教室"
     "focus" -> "专注"
     "settings" -> "设置"
