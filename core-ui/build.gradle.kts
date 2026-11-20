@@ -40,8 +40,12 @@ dependencies {
     api(libs.androidx.compose.foundation)
     api(libs.androidx.compose.material3)
     api(libs.androidx.lifecycle.viewmodel.compose)
+    api(libs.androidx.lifecycle.viewmodel.ktx)
     api(libs.androidx.lifecycle.runtime.compose)
 
     implementation(libs.androidx.core.ktx)
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

@@ -121,26 +121,53 @@ val source = MergedScheduleSource(EasSource(), GmsSource(), ManualSource())
 
 ## 4. 接进 demo
 
-`MainActivity` 里把假数据换成数据源即可：
+`MainActivity` 里把假数据源换成你的数据源即可——加载、缓存、翻周、错误态都由框架的
+`ScheduleViewModel` 负责，**这段代码接入方不用写**：
 
 ```kotlin
 val source = remember { MyScheduleSource(client) }
-val courses by produceState(initialValue = emptyList<Course>()) {
-    value = try {
-        source.loadCourses()
-    } catch (e: UniPocketException) {
-        // 骨架期先留空；正式接入时按 e 的类型展示"重试 / 重新登录"按钮
-        emptyList()
+val viewModel: ScheduleViewModel = viewModel(
+    factory = ScheduleViewModel.factory(config, source),
+)
+val state by viewModel.state.collectAsStateWithLifecycle()
+
+WeekHeader(
+    week = state.week,
+    weekCount = state.weekCount,
+    isCurrentWeek = state.isCurrentWeek,
+    onPrevious = viewModel::previousWeek,
+    onNext = viewModel::nextWeek,
+    onToday = viewModel::goToToday,
+)
+
+state.error?.let { ScheduleErrorBanner(error = it, onRetry = viewModel::retry) }
+
+Box(Modifier.weight(1f)) {
+    WeekTimetable(
+        config = config,
+        courses = state.courses,
+        week = state.week,
+        onCourseClick = { selectedCourse = it },
+    )
+    when {
+        state.isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+        state.isEmpty -> Text("本周没有课程", Modifier.align(Alignment.Center))
     }
 }
-
-WeekTimetable(
-    config = config,
-    courses = courses,
-    week = week,
-    onCourseClick = { selectedCourse = it },
-)
 ```
+
+状态字段的含义：
+
+| 字段 | 含义 |
+|---|---|
+| `courses` | 当前周已过滤好的课程 |
+| `isLoading` | 首次加载中（还没有任何数据） |
+| `isRefreshing` | 已有数据、后台刷新中 |
+| `error` | 最近一次失败（`UniPocketException` 四类），成功后清空 |
+| `isEmpty` | 本周确实没课（不是加载中，也不是出错） |
+| `lastUpdated` | 最近一次成功加载的时间 |
+
+**刷新失败不会清空课表**：`courses` 保留旧数据，`error` 有值，界面同时显示课表和错误条。
 
 到这里，课表页已经是你们学校的数据了。剩下的设置页、番茄钟、统计等，按需从上游搬或自己写。
 
@@ -148,7 +175,7 @@ WeekTimetable(
 
 ## 5. 自检清单
 
-- [ ] `./gradlew :core-domain:test` 全绿
+- [ ] `./gradlew :core-domain:test` 与 `./gradlew :core-ui:test` 全绿
 - [ ] 第 1 周、中间某周、最后一周各翻一次，周次过滤正确
 - [ ] 周末有课/没课两种情况都正常
 - [ ] 断网时界面不崩溃，有可读的错误提示

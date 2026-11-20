@@ -2,8 +2,10 @@ package com.unipocket.demo
 
 import com.unipocket.domain.Course
 import com.unipocket.domain.Period
+import com.unipocket.domain.ScheduleSource
 import com.unipocket.domain.SchoolConfig
 import com.unipocket.domain.Semester
+import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -154,3 +156,21 @@ object FakeData {
 }
 
 private fun weeksOf(range: IntRange): Set<Int> = range.toSet()
+
+/**
+ * 假数据源：模拟一次网络请求的延迟，方便观察"加载中"状态。
+ *
+ * 外校接入时，把 [FakeData.courses] 换成自家教务返回的 `List<Course>` 即可——
+ * 也可以直接参考这个类写自己的 `ScheduleSource`。
+ */
+class FakeScheduleSource(
+    private val delayMillis: Long = 400,
+) : ScheduleSource {
+
+    override val id: String = "fake"
+
+    override suspend fun loadCourses(): List<Course> {
+        if (delayMillis > 0) delay(delayMillis)
+        return FakeData.courses
+    }
+}
