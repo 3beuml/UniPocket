@@ -42,17 +42,23 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - uses: android-actions/setup-android@v3
-
       - name: 安装 SDK 36
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+          # runner 镜像自带 Android SDK；不走 android-actions/setup-android
+          # （该 action 会尝试安装已下线的 "tools" 包而失败）
+          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKM="$(find "$SDK/cmdline-tools" -name sdkmanager -type f 2>/dev/null | head -1)"
+          if [[ -z "$SDKM" ]]; then echo "::error::找不到 sdkmanager"; exit 1; fi
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" "platforms;android-36" "build-tools;36.0.0"
+          echo "sdk.dir=$SDK" > local.properties
 
       - uses: gradle/actions/setup-gradle@v4
 
       - name: 单元测试
-        run: ./gradlew --no-daemon :core-domain:test
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :core-domain:test
 
       - name: 编译 demo
         run: ./gradlew --no-daemon :demo:assembleDebug
