@@ -26,12 +26,15 @@
 
 ## 接入你学校需要做什么
 
-1. clone / fork 本仓库，跑改名脚本把包名与应用名换成自己的。
-2. 实现 `ScheduleSource`（把自家教务的课表转成 `Course`），可选实现 `RoomSource`。
-3. 填 `SchoolConfig`（节次时间表、学期起始日、总周数）。
+1. fork 本仓库，跑改名脚本把包名与应用名换成自己的：
+   ```bash
+   ./tools/rename.sh --package com.yourschool.pocket --app-name "你的课程表"
+   ```
+2. 填 `SchoolConfig`（节次时间表、学期起始日、总周数）。
+3. 实现 `ScheduleSource`（把自家教务的课表转成 `Course`），可选实现 `RoomSource`。
 4. 用你的 Source 替换 demo 里的假数据源。
 
-界面代码一行都不用改。
+界面代码一行都不用改。完整步骤、代码示例与常见坑见 **[docs/INTEGRATION.md](docs/INTEGRATION.md)**。
 
 ## 边界
 

@@ -1,0 +1,158 @@
+# 接入指南：把 UniPocket 变成你学校的课表 App
+
+这份指南假设你会写 Kotlin。整体只有四步：**改名 → 填配置 → 写数据源 → 接进 demo**。
+课表网格、周翻页、课程详情这些界面代码一行都不用改。
+
+---
+
+## 0. 准备
+
+- JDK 17 或更高（推荐 21）
+- Android SDK Platform 36
+- 一个能拿到本校课表的办法：教务接口、网页抓取、导出的文件都行
+- 如果学校没有干净接口，先想清楚**登录与会话**怎么处理——这部分框架不提供
+
+---
+
+## 1. 改名
+
+```bash
+# 先看一眼会改哪些文件
+./tools/rename.sh --package com.yourschool.pocket --app-name "你的课程表" --dry-run
+
+# 确认后执行
+./tools/rename.sh --package com.yourschool.pocket --app-name "你的课程表"
+
+./gradlew :demo:assembleDebug
+```
+
+脚本会移动 `com/unipocket` 源码目录、改写包名与应用名。跑完装上手机，看到的还是假课表——
+这是正常的，下一步换数据。
+
+> 类名（`UniPocketTheme`、`UniPocketException`）刻意不改，方便日后与上游对比。
+> MIT 许可证要求保留 `LICENSE`；建议在 README 里注明"基于 UniPocket"。
+
+---
+
+## 2. 填学校配置
+
+打开 `demo/src/main/kotlin/.../FakeData.kt`，把 `config` 换成你们学校的节次表与学期：
+
+```kotlin
+val config = SchoolConfig(
+    schoolName = "××大学",
+    periods = listOf(
+        Period(1, LocalTime.of(8, 0), LocalTime.of(8, 45)),
+        Period(2, LocalTime.of(8, 55), LocalTime.of(9, 40)),
+        // …按学校实际节次继续，序号必须从 1 开始连续
+    ),
+    semester = Semester(
+        name = "2026-2027 第一学期",
+        startDate = LocalDate.of(2026, 9, 1), // 第 1 周内任意一天都行，框架会自动归一到周首
+        weekCount = 20,
+        weekStartOnSunday = false,            // 学校按周一算周首就填 false
+    ),
+)
+```
+
+**常见差异：**
+
+| 学校情况 | 怎么填 |
+|---|---|
+| 一周从周日开始 | `weekStartOnSunday = true` |
+| 有上午/下午/晚上分段 | 放进 `Period.attributes["dayPart"]`，框架不依赖 |
+| 节次名不是"第 N 节" | `Period.name = "第 N 大节"`，仅影响显示 |
+| 学期起始日不确定 | 填第 1 周任意一天即可 |
+
+---
+
+## 3. 写数据源
+
+新建一个文件，实现 `ScheduleSource`。核心只有一件事：**把学校的数据转成 `Course` 列表**。
+
+```kotlin
+class MyScheduleSource(private val client: MySchoolClient) : ScheduleSource {
+
+    override val id: String = "my-school"
+
+    override suspend fun loadCourses(): List<Course> {
+        return try {
+            client.fetchTimetable().map { dto ->
+                Course(
+                    id = dto.stableKey(),          // 同一节课每次必须相同
+                    name = dto.courseName,
+                    teacher = dto.teacher,
+                    room = dto.roomName,
+                    weeks = dto.weekNumbers,       // Set<Int>，1 起
+                    dayOfWeek = dto.weekday,       // 1=周一 … 7=周日
+                    periods = dto.startPeriod..dto.endPeriod,
+                    attributes = mapOf(
+                        "campus" to dto.campusName,
+                        "experiment" to dto.isExperiment.toString(),
+                    ),
+                )
+            }
+        } catch (e: IOException) {
+            throw UniPocketException.Network("课表获取失败：${e.message}", e)
+        } catch (e: SessionExpiredException) {
+            throw UniPocketException.AuthExpired(cause = e)
+        } catch (e: Exception) {
+            throw UniPocketException.DataFormat("课表数据格式异常：${e.message}", e)
+        }
+    }
+}
+```
+
+**三条硬约定：**
+
+1. **一条 = 一个时间段**。同一门课周二、周四都有，就产生两条 `Course`；非连续节次（1、3 节）也要拆成两条。
+2. **`id` 必须稳定**。用"课号 + 星期 + 节次"拼，别用列表下标或时间戳。
+3. **学校专有信息放进 `attributes`**，不要新增字段、不要把校区拼进 `room`。
+
+**多来源合并**（例如本科生教务 + 研究生教务 + 手动补录）：
+
+```kotlin
+val source = MergedScheduleSource(EasSource(), GmsSource(), ManualSource())
+```
+
+内容相同的课会自动去重（保留先出现的来源）。
+
+---
+
+## 4. 接进 demo
+
+`MainActivity` 里把假数据换成数据源即可：
+
+```kotlin
+val source = remember { MyScheduleSource(client) }
+val courses by produceState(initialValue = emptyList<Course>()) {
+    value = try {
+        source.loadCourses()
+    } catch (e: UniPocketException) {
+        // 骨架期先留空；正式接入时按 e 的类型展示"重试 / 重新登录"按钮
+        emptyList()
+    }
+}
+
+WeekTimetable(
+    config = config,
+    courses = courses,
+    week = week,
+    onCourseClick = { selectedCourse = it },
+)
+```
+
+到这里，课表页已经是你们学校的数据了。剩下的设置页、番茄钟、统计等，按需从上游搬或自己写。
+
+---
+
+## 5. 自检清单
+
+- [ ] `./gradlew :core-domain:test` 全绿
+- [ ] 第 1 周、中间某周、最后一周各翻一次，周次过滤正确
+- [ ] 周末有课/没课两种情况都正常
+- [ ] 断网时界面不崩溃，有可读的错误提示
+- [ ] **没有把**学号、密码、keystore、校园网凭据、完整房间表提交进仓库
+- [ ] 公共仓库里 `grep -ri zzu`（或你学校的标识）没有任何命中
+
+最后一条由 CI 自动检查（见 `.github/workflows/ci.yml`）。
