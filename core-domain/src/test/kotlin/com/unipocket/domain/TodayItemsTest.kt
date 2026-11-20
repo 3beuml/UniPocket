@@ -1,8 +1,6 @@
-package com.unipocket.ui.today
+package com.unipocket.domain
 
-import com.unipocket.domain.Course
 import com.unipocket.domain.Period
-import com.unipocket.domain.SchoolConfig
 import com.unipocket.domain.Semester
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

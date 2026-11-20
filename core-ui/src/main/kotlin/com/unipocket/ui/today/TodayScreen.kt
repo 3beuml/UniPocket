@@ -27,6 +27,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.unipocket.domain.Course
+import com.unipocket.domain.TodayItem
+import com.unipocket.domain.TodayStatus
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 

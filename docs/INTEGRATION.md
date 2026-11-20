@@ -286,7 +286,10 @@ class MyWeekWidget : AppWidgetProvider() {
 
 ```bash
 adb shell am start -n <你的包名>/.WidgetPreviewActivity --ei width 342 --ei height 380
+adb shell am start -n <你的包名>/.WidgetPreviewActivity --es type today --ei width 250 --ei height 150
 ```
+
+今天组件用 `TodayWidgetRenderer.render(..., week, date, now, ...)`，`date/time` 由 Provider 传当前值。
 
 注意两个真机结论（已写进 `widget` 模块的实现）：
 - 组件尺寸上报**虚高约 30dp**，账本会先扣掉；

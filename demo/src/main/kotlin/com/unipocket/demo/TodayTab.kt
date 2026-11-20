@@ -9,9 +9,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.unipocket.domain.todayItems
 import com.unipocket.ui.schedule.ScheduleViewModel
 import com.unipocket.ui.today.TodayScreen
-import com.unipocket.ui.today.todayItems
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.LocalTime

@@ -1,7 +1,5 @@
-package com.unipocket.ui.today
+package com.unipocket.domain
 
-import com.unipocket.domain.Course
-import com.unipocket.domain.SchoolConfig
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
