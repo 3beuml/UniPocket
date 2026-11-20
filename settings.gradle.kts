@@ -35,5 +35,6 @@ rootProject.name = "UniPocket"
 include(":core-domain")
 include(":core-ui")
 include(":feature-room")
+include(":feature-settings")
 include(":widget")
 include(":demo")

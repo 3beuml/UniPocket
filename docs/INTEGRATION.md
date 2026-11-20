@@ -198,6 +198,45 @@ RoomScreen(config, state, onDaySelected = vm::setDayOfWeek, onPeriodSelected = v
 
 ---
 
+## 4.6 偏好与设置页
+
+偏好接口 `PrefsStore` 在 `core-domain`，框架**不绑定存储**。demo 里有一份
+SharedPreferences 实现（`SharedPreferencesPrefsStore.kt`）可以直接抄。
+
+App 级只需要建一个仓储并启动一次：
+
+```kotlin
+val repository = remember {
+    PrefsRepository(SharedPreferencesPrefsStore(context.getSharedPreferences("app", MODE_PRIVATE)), scope)
+}
+LaunchedEffect(Unit) { repository.start() }
+
+val prefs by repository.prefs.collectAsStateWithLifecycle()
+UniPocketTheme(
+    darkTheme = when (prefs.darkMode) { SYSTEM -> isSystemInDarkTheme(); LIGHT -> false; DARK -> true },
+    seedColor = Color(prefs.themeSeed),
+) { /* AppShell… */ }
+```
+
+设置页 UI 在 `feature-settings`（可选模块）。不需要设置页时，删掉这个模块即可；
+但**只要你想保留用户偏好**，`PrefsRepository` 与 `PrefsStore` 实现仍要留在 App 里——
+它们属于核心层，不在设置模块内。
+
+课表页读取显示项：
+
+```kotlin
+WeekTimetable(
+    config = config,
+    courses = state.courses,
+    week = state.week,
+    showWeekend = prefs.showWeekend,
+    showTeacher = prefs.showTeacher,
+    showRoom = prefs.showRoom,
+)
+```
+
+---
+
 ## 5. 自检清单
 
 - [ ] `./gradlew :core-domain:test` 与 `./gradlew :core-ui:test` 全绿

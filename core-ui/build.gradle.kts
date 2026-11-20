@@ -44,6 +44,8 @@ dependencies {
     api(libs.androidx.lifecycle.runtime.compose)
 
     implementation(libs.androidx.core.ktx)
+    // 由种子色生成整套 M3 配色（外观设置用）
+    implementation(libs.material.color.utilities)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)

@@ -57,11 +57,15 @@ fun WeekTimetable(
     courses: List<Course>,
     week: Int,
     modifier: Modifier = Modifier,
+    showWeekend: Boolean = true,
+    showTeacher: Boolean = false,
+    showRoom: Boolean = true,
     onCourseClick: (Course) -> Unit = {},
 ) {
     val weekCourses = remember(courses, week) { courses.inWeek(week) }
     val byDay = remember(weekCourses) { weekCourses.groupBy { it.dayOfWeek } }
     val lanesByDay = remember(byDay) { byDay.mapValues { (_, list) -> computeLanes(list) } }
+    val days = if (showWeekend) 1..7 else 1..5
 
     val today = LocalDate.now()
     val todayWeek = config.semester.weekOf(today)
@@ -76,8 +80,8 @@ fun WeekTimetable(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Spacer(Modifier.width(TimeColumnWidth))
-            DayLabels.forEachIndexed { index, label ->
-                val day = index + 1
+            days.forEach { day ->
+                val label = DayLabels[day - 1]
                 val isToday = isCurrentWeek && day == todayDay
                 Column(
                     modifier = Modifier.weight(1f),
@@ -104,12 +108,14 @@ fun WeekTimetable(
         ) {
             Row(Modifier.fillMaxWidth()) {
                 PeriodColumn(config)
-                for (day in 1..7) {
+                for (day in days) {
                     DayColumn(
                         day = day,
                         periodCount = config.periodCount,
                         courses = byDay[day].orEmpty(),
                         lanes = lanesByDay[day].orEmpty(),
+                        showTeacher = showTeacher,
+                        showRoom = showRoom,
                         onCourseClick = onCourseClick,
                     )
                 }
@@ -143,6 +149,8 @@ private fun RowScope.DayColumn(
     periodCount: Int,
     courses: List<Course>,
     lanes: Map<String, LaneInfo>,
+    showTeacher: Boolean,
+    showRoom: Boolean,
     onCourseClick: (Course) -> Unit,
 ) {
     BoxWithConstraints(
@@ -174,14 +182,27 @@ private fun RowScope.DayColumn(
                         overflow = TextOverflow.Ellipsis,
                         color = BlockTextColor,
                     )
-                    course.room?.takeIf { it.isNotBlank() }?.let {
-                        Text(
-                            text = it,
-                            fontSize = 7.5f.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = BlockTextColor.copy(alpha = 0.7f),
-                        )
+                    if (showTeacher) {
+                        course.teacher?.takeIf { it.isNotBlank() }?.let {
+                            Text(
+                                text = it,
+                                fontSize = 7.5f.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = BlockTextColor.copy(alpha = 0.7f),
+                            )
+                        }
+                    }
+                    if (showRoom) {
+                        course.room?.takeIf { it.isNotBlank() }?.let {
+                            Text(
+                                text = it,
+                                fontSize = 7.5f.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = BlockTextColor.copy(alpha = 0.7f),
+                            )
+                        }
                     }
                 }
             }

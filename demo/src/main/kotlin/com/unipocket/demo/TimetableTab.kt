@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.unipocket.domain.Course
+import com.unipocket.domain.SchedulePrefs
 import com.unipocket.ui.common.UniPocketErrorBanner
 import com.unipocket.ui.schedule.ScheduleViewModel
 import com.unipocket.ui.schedule.WeekHeader
@@ -30,7 +31,7 @@ import com.unipocket.ui.schedule.WeekTimetable
  * 换数据只需要换一个 `ScheduleSource`，这个文件其余部分不用动。
  */
 @Composable
-fun TimetableTab(modifier: Modifier = Modifier) {
+fun TimetableTab(prefs: SchedulePrefs, modifier: Modifier = Modifier) {
     val config = FakeData.config
     val source = remember { FakeScheduleSource() }
     val viewModel: ScheduleViewModel = viewModel(
@@ -59,6 +60,9 @@ fun TimetableTab(modifier: Modifier = Modifier) {
                 courses = state.courses,
                 week = state.week,
                 modifier = Modifier.fillMaxSize(),
+                showWeekend = prefs.showWeekend,
+                showTeacher = prefs.showTeacher,
+                showRoom = prefs.showRoom,
                 onCourseClick = { selectedCourse = it },
             )
 

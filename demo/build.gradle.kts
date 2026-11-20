@@ -38,6 +38,7 @@ dependencies {
     implementation(project(":core-domain"))
     implementation(project(":core-ui"))
     implementation(project(":feature-room"))
+    implementation(project(":feature-settings"))
     implementation(project(":widget"))
 
     implementation(libs.androidx.core.ktx)
