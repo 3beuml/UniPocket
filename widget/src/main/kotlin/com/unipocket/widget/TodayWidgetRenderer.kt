@@ -38,6 +38,7 @@ object TodayWidgetRenderer {
         reportedWidthDp: Float,
         reportedHeightDp: Float,
         style: WidgetStyle = WidgetStyle(),
+        options: WidgetOptions = WidgetOptions(),
         clickIntent: PendingIntent? = null,
     ): RemoteViews {
         val pkg = context.packageName
@@ -112,11 +113,16 @@ object TodayWidgetRenderer {
             row.setTextColor(R.id.today_row_name, nameColor)
 
             val detail = listOfNotNull(
-                item.course.room?.takeIf { it.isNotBlank() },
+                item.course.room?.takeIf { it.isNotBlank() && options.showRoom },
                 item.statusLabel,
             ).joinToString(" · ")
-            row.setTextViewText(R.id.today_row_detail, detail)
-            row.setTextColor(R.id.today_row_detail, sub)
+            if (detail.isBlank()) {
+                row.setViewVisibility(R.id.today_row_detail, View.GONE)
+            } else {
+                row.setViewVisibility(R.id.today_row_detail, View.VISIBLE)
+                row.setTextViewText(R.id.today_row_detail, detail)
+                row.setTextColor(R.id.today_row_detail, sub)
+            }
 
             root.addView(R.id.today_rows, row)
         }

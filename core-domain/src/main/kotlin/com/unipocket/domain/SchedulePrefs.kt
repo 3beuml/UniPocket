@@ -32,6 +32,10 @@ data class SchedulePrefs(
     val backgroundUri: String? = null,
     /** 背景图上盖一层主题色半透明遮罩，保证文字可读 */
     val backgroundDim: Boolean = true,
+    /** 桌面组件是否显示教室（一周组件的课程块 / 今天组件的明细） */
+    val widgetShowRoom: Boolean = true,
+    /** 桌面组件是否显示时间段（节次列的时刻、周末明细条的时间） */
+    val widgetShowTime: Boolean = true,
 ) {
     companion object {
         /** 默认种子色：偏蓝的靛色，浅色/深色下对比都够 */
@@ -44,6 +48,8 @@ data class SchedulePrefs(
         const val KEY_SHOW_ROOM = "display.showRoom"
         const val KEY_BACKGROUND_URI = "appearance.backgroundUri"
         const val KEY_BACKGROUND_DIM = "appearance.backgroundDim"
+        const val KEY_WIDGET_SHOW_ROOM = "widget.showRoom"
+        const val KEY_WIDGET_SHOW_TIME = "widget.showTime"
 
         /** 顺序必须与 [PrefsRepository] 的 combine 解析一致 */
         val KEYS: List<String> = listOf(
@@ -54,6 +60,8 @@ data class SchedulePrefs(
             KEY_SHOW_ROOM,
             KEY_BACKGROUND_URI,
             KEY_BACKGROUND_DIM,
+            KEY_WIDGET_SHOW_ROOM,
+            KEY_WIDGET_SHOW_TIME,
         )
     }
 }

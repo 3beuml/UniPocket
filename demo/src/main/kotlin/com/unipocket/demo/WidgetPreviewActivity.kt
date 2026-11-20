@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.unipocket.widget.TodayWidgetRenderer
+import com.unipocket.widget.WidgetOptions
 import com.unipocket.widget.WeekWidgetRenderer
 import com.unipocket.widget.WidgetMetrics
 import com.unipocket.widget.WidgetStyle
@@ -51,6 +52,7 @@ class WidgetPreviewActivity : ComponentActivity() {
                             FrameLayout(context).apply {
                                 setBackgroundColor(0xFFFFFFFF.toInt())
                                 val config = FakeData.config
+                                val options = loadWidgetOptions(context)
                                 val views = if (type == "today") {
                                     TodayWidgetRenderer.render(
                                         context = context,
@@ -62,6 +64,7 @@ class WidgetPreviewActivity : ComponentActivity() {
                                         reportedWidthDp = widthDp.toFloat(),
                                         reportedHeightDp = reportedHeightDp.toFloat(),
                                         style = WidgetStyle(dark = dark),
+                                        options = options,
                                     )
                                 } else {
                                     WeekWidgetRenderer.render(
@@ -72,6 +75,7 @@ class WidgetPreviewActivity : ComponentActivity() {
                                         reportedWidthDp = widthDp.toFloat(),
                                         reportedHeightDp = reportedHeightDp.toFloat(),
                                         style = WidgetStyle(dark = dark),
+                                        options = options,
                                     )
                                 }
                                 addView(views.apply(context, this))

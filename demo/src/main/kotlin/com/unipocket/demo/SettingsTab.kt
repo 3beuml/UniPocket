@@ -40,6 +40,8 @@ fun SettingsTab(repository: PrefsRepository, modifier: Modifier = Modifier) {
         onPickBackground = { pickImage.launch(arrayOf("image/*")) },
         onClearBackground = { repository.setBackgroundUri(null) },
         onToggleBackgroundDim = repository::setBackgroundDim,
+        onWidgetShowRoomChange = repository::setWidgetShowRoom,
+        onWidgetShowTimeChange = repository::setWidgetShowTime,
         modifier = modifier,
     )
 }

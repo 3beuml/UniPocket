@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 前景：白色圆角画板 + 粉彩课程块，模拟一张迷你课表。
+     图形集中在 108dp 画布中央 40dp 安全区内，四角留白给启动器的遮罩。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 白色圆角画板 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M34,32 h40 a6,6 0 0 1 6,6 v32 a6,6 0 0 1 -6,6 h-40 a6,6 0 0 1 -6,-6 v-32 a6,6 0 0 1 6,-6 z" />
+
+    <!-- 课表块：左列两节 + 右列一节 -->
+    <path
+        android:fillColor="#BBDEFB"
+        android:pathData="M36,38 h16 v16 h-16 z" />
+    <path
+        android:fillColor="#FFE0B2"
+        android:pathData="M36,58 h16 v12 h-16 z" />
+    <path
+        android:fillColor="#C8E6C9"
+        android:pathData="M58,38 h18 v10 h-18 z" />
+
+    <!-- 网格线 -->
+    <path
+        android:strokeColor="#E0E0E0"
+        android:strokeWidth="2"
+        android:pathData="M34,56 h46 M56,38 v32" />
+
+</vector>

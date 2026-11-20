@@ -62,6 +62,8 @@ fun SettingsScreen(
     onPickBackground: () -> Unit,
     onClearBackground: () -> Unit,
     onToggleBackgroundDim: (Boolean) -> Unit,
+    onWidgetShowRoomChange: (Boolean) -> Unit,
+    onWidgetShowTimeChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -185,6 +187,24 @@ fun SettingsScreen(
             subtitle = "在课程块里显示教室",
             checked = prefs.showRoom,
             onCheckedChange = onShowRoomChange,
+        )
+
+        Spacer(Modifier.height(16.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+        SectionTitle("小组件")
+
+        SwitchRow(
+            title = "组件显示教室",
+            subtitle = "桌面组件课程块与明细里的教室",
+            checked = prefs.widgetShowRoom,
+            onCheckedChange = onWidgetShowRoomChange,
+        )
+        SwitchRow(
+            title = "组件显示时间",
+            subtitle = "节次列的时刻、周末明细条的时间",
+            checked = prefs.widgetShowTime,
+            onCheckedChange = onWidgetShowTimeChange,
         )
 
         Spacer(Modifier.height(24.dp))

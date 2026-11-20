@@ -51,6 +51,7 @@ object WeekWidgetRenderer {
         reportedWidthDp: Float,
         reportedHeightDp: Float,
         style: WidgetStyle = WidgetStyle(),
+        options: WidgetOptions = WidgetOptions(),
         clickIntent: PendingIntent? = null,
     ): RemoteViews {
         val pkg = context.packageName
@@ -116,7 +117,7 @@ object WeekWidgetRenderer {
             val period = config.period(row)
             val label = buildString {
                 append(row)
-                if (period != null) {
+                if (period != null && options.showTime) {
                     append('\n')
                     append(period.startText)
                 }
@@ -154,7 +155,7 @@ object WeekWidgetRenderer {
                 val blockHeight = plan.rowHeightsDp.subList(row - 1, spanEnd).sum()
                 column.addView(
                     R.id.day_root,
-                    courseCell(pkg, density, course, plan.columnWidthDp, blockHeight, style),
+                    courseCell(pkg, density, course, plan.columnWidthDp, blockHeight, style, options),
                 )
                 row = spanEnd + 1
             }
@@ -167,7 +168,10 @@ object WeekWidgetRenderer {
         val weekendCourses = weekCourses.filter { it.dayOfWeek >= 6 }
         if (weekendCourses.isNotEmpty()) {
             root.setViewVisibility(R.id.week_strip, View.VISIBLE)
-            root.setTextViewText(R.id.week_strip, weekendStripText(config, week, weekendCourses))
+            root.setTextViewText(
+                R.id.week_strip,
+                weekendStripText(config, week, weekendCourses, options),
+            )
             root.setTextColor(R.id.week_strip, sub)
         } else {
             root.setViewVisibility(R.id.week_strip, View.GONE)
@@ -190,6 +194,7 @@ object WeekWidgetRenderer {
         widthDp: Float,
         heightDp: Float,
         style: WidgetStyle,
+        options: WidgetOptions,
     ): RemoteViews {
         val cell = RemoteViews(pkg, R.layout.unipocket_widget_course_cell)
         val blockColor = style.blockPalette[Math.floorMod(course.colorSeed, style.blockPalette.size)]
@@ -206,7 +211,7 @@ object WeekWidgetRenderer {
         cell.setTextColor(R.id.course_name, BLOCK_TEXT)
 
         val room = course.room
-        if (room.isNullOrBlank()) {
+        if (room.isNullOrBlank() || !options.showRoom) {
             cell.setViewVisibility(R.id.course_room, View.GONE)
         } else {
             cell.setTextViewText(R.id.course_room, room)
@@ -223,6 +228,7 @@ object WeekWidgetRenderer {
         config: SchoolConfig,
         week: Int,
         weekendCourses: List<Course>,
+        options: WidgetOptions,
     ): String = weekendCourses
         .sortedWith(compareBy({ it.dayOfWeek }, { it.startPeriod }))
         .take(2)
@@ -234,8 +240,8 @@ object WeekWidgetRenderer {
                 DAY_LABELS.getOrNull(course.dayOfWeek - 1),
                 date?.let { "${it.monthValue}.${it.dayOfMonth}" },
                 course.name,
-                course.room,
-                if (start.isNotEmpty() && end.isNotEmpty()) "$start-$end" else null,
+                course.room?.takeIf { options.showRoom },
+                if (options.showTime && start.isNotEmpty() && end.isNotEmpty()) "$start-$end" else null,
             ).filter { it.isNotBlank() }.joinToString(" ")
         }
 }

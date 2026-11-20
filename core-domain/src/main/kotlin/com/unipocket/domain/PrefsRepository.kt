@@ -40,6 +40,8 @@ class PrefsRepository(
                     showRoom = values[4]?.toBooleanStrictOrNull() ?: true,
                     backgroundUri = values[5]?.takeIf { it.isNotBlank() },
                     backgroundDim = values[6]?.toBooleanStrictOrNull() ?: true,
+                    widgetShowRoom = values[7]?.toBooleanStrictOrNull() ?: true,
+                    widgetShowTime = values[8]?.toBooleanStrictOrNull() ?: true,
                 )
             }.collect { _prefs.value = it }
         }
@@ -58,6 +60,10 @@ class PrefsRepository(
     fun setBackgroundUri(uri: String?) = write(SchedulePrefs.KEY_BACKGROUND_URI, uri)
 
     fun setBackgroundDim(dim: Boolean) = write(SchedulePrefs.KEY_BACKGROUND_DIM, dim.toString())
+
+    fun setWidgetShowRoom(show: Boolean) = write(SchedulePrefs.KEY_WIDGET_SHOW_ROOM, show.toString())
+
+    fun setWidgetShowTime(show: Boolean) = write(SchedulePrefs.KEY_WIDGET_SHOW_TIME, show.toString())
 
     private fun write(key: String, value: String?) {
         scope.launch { store.write(key, value) }

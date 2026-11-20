@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
 import com.unipocket.widget.TodayWidgetRenderer
+import com.unipocket.widget.WidgetOptions
 import com.unipocket.widget.WidgetStyle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -72,6 +73,7 @@ class TodayWidgetProvider : AppWidgetProvider() {
                     reportedWidthDp = widthDp,
                     reportedHeightDp = heightDp,
                     style = WidgetStyle(dark = dark),
+                    options = loadWidgetOptions(context),
                     clickIntent = openApp,
                 )
                 appWidgetManager.updateAppWidget(appWidgetId, views)
