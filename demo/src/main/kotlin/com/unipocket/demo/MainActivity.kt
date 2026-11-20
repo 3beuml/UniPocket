@@ -6,8 +6,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -21,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.unipocket.domain.DarkMode
 import com.unipocket.domain.PrefsRepository
+import com.unipocket.ui.AppBackground
 import com.unipocket.ui.AppShell
 import com.unipocket.ui.AppTab
 import com.unipocket.ui.UniPocketTheme
@@ -72,26 +75,43 @@ private fun DemoApp() {
         DarkMode.DARK -> true
     }
 
+    val backgroundPainter = rememberBackgroundPainter(prefs.backgroundUri)
+    val hasBackground = backgroundPainter != null
+
     UniPocketTheme(
         darkTheme = darkTheme,
         seedColor = Color(prefs.themeSeed),
     ) {
-        var selectedTabId by rememberSaveable { mutableStateOf(demoTabs.first().id) }
+        // 背景图在 AppShell 之下，Scaffold 需要透明才能透出来
+        AppBackground(
+            painter = backgroundPainter,
+            dim = prefs.backgroundDim,
+        ) {
+            var selectedTabId by rememberSaveable { mutableStateOf(demoTabs.first().id) }
 
-        AppShell(
-            tabs = demoTabs,
-            selectedTabId = selectedTabId,
-            onTabSelected = { selectedTabId = it },
-            topBar = { tab ->
-                TopAppBar(title = { Text(titleFor(tab.id)) })
-            },
-        ) { tab ->
-            when (tab.id) {
-                "rooms" -> RoomTab()
-                "focus" -> FocusTab()
-                "settings" -> SettingsTab(prefsRepository)
-                "schedule" -> TimetableTab(prefs = prefs)
-                else -> TodayTab()
+            AppShell(
+                tabs = demoTabs,
+                selectedTabId = selectedTabId,
+                onTabSelected = { selectedTabId = it },
+                containerColor = if (hasBackground) Color.Transparent
+                else MaterialTheme.colorScheme.background,
+                topBar = { tab ->
+                    TopAppBar(
+                        title = { Text(titleFor(tab.id)) },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = if (hasBackground) Color.Transparent
+                            else MaterialTheme.colorScheme.surface,
+                        ),
+                    )
+                },
+            ) { tab ->
+                when (tab.id) {
+                    "rooms" -> RoomTab()
+                    "focus" -> FocusTab()
+                    "settings" -> SettingsTab(prefsRepository)
+                    "schedule" -> TimetableTab(prefs = prefs)
+                    else -> TodayTab()
+                }
             }
         }
     }

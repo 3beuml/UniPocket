@@ -295,6 +295,22 @@ adb shell am start -n <你的包名>/.WidgetPreviewActivity --es type today --ei
 - 组件尺寸上报**虚高约 30dp**，账本会先扣掉；
 - 行高按课名实际行数计算，装不下就少画一行——**绝不压缩到裁字**。
 
+## 4.8 背景图（可选）
+
+框架只负责画：`AppBackground(painter, dim)` 放在主题之下、`AppShell` 之上，
+背景有图时把 Scaffold/TopAppBar 的底色调成透明即可。偏好字段是现成的：
+
+```kotlin
+val painter = rememberBackgroundPainter(prefs.backgroundUri)   // demo 里有参考实现
+AppBackground(painter = painter, dim = prefs.backgroundDim) { AppShell(…) }
+```
+
+选图归 App：demo 用 `ActivityResultContracts.OpenDocument` + `takePersistableUriPermission`
+（重启后仍可读），`repository.setBackgroundUri(uri)` 存进框架偏好；`repository.setBackgroundUri(null)` 移除。
+不想让用户换背景，忽略这几个回调就行，核心页面不受影响。
+
+---
+
 ## 5. 自检清单
 
 - [ ] `./gradlew :core-domain:test` 与 `./gradlew :core-ui:test` 全绿

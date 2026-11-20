@@ -24,6 +24,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +59,9 @@ fun SettingsScreen(
     onShowWeekendChange: (Boolean) -> Unit,
     onShowTeacherChange: (Boolean) -> Unit,
     onShowRoomChange: (Boolean) -> Unit,
+    onPickBackground: () -> Unit,
+    onClearBackground: () -> Unit,
+    onToggleBackgroundDim: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -122,6 +126,42 @@ fun SettingsScreen(
                 }
             }
         }
+
+        Text(
+            text = "背景图",
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = if (prefs.backgroundUri != null) "已设置背景图" else "未设置背景图",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text = "从相册选择一张图片（由 App 负责读取与授权）",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(onClick = onPickBackground) {
+                Text(if (prefs.backgroundUri != null) "更换" else "选择")
+            }
+            if (prefs.backgroundUri != null) {
+                TextButton(onClick = onClearBackground) { Text("移除") }
+            }
+        }
+        SwitchRow(
+            title = "背景变暗",
+            subtitle = "在图片上盖一层遮罩，保证文字清晰",
+            checked = prefs.backgroundDim,
+            onCheckedChange = onToggleBackgroundDim,
+        )
 
         Spacer(Modifier.height(16.dp))
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

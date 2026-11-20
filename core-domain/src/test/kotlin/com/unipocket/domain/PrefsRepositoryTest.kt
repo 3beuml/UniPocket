@@ -84,4 +84,20 @@ class PrefsRepositoryTest {
 
         assertEquals(false, repository.prefs.value.showRoom)
     }
+
+    @Test
+    fun `背景图 URI 与变暗开关可往返`() = runTest {
+        val store = InMemoryPrefsStore()
+        val repository = repository(store)
+        repository.start()
+
+        repository.setBackgroundUri("content://media/1")
+        repository.setBackgroundDim(false)
+
+        assertEquals("content://media/1", repository.prefs.value.backgroundUri)
+        assertEquals(false, repository.prefs.value.backgroundDim)
+
+        repository.setBackgroundUri(null)
+        assertEquals(null, repository.prefs.value.backgroundUri)
+    }
 }

@@ -24,10 +24,10 @@ class SharedPreferencesPrefsStore(
     )
 
     override fun observe(key: String): Flow<String?> = callbackFlow {
-        trySend(prefs.getString(key, null))
+        trySend(currentValue(key))
 
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, changed ->
-            if (changed == key) trySend(prefs.getString(key, null))
+            if (changed == key) trySend(currentValue(key))
         }
         activeListeners.add(listener)
         prefs.registerOnSharedPreferenceChangeListener(listener)
@@ -38,7 +38,14 @@ class SharedPreferencesPrefsStore(
         }
     }
 
-    override suspend fun read(key: String): String? = prefs.getString(key, null)
+    override suspend fun read(key: String): String? = currentValue(key)
+
+    /**
+     * 用 [SharedPreferences.getAll] 而不是 getString：
+     * getString 遇到类型不匹配的历史数据（外部工具写入的 boolean 等）会直接抛
+     * ClassCastException，这里宁可把 1 当成 "1"，也不能让 App 崩在启动页。
+     */
+    private fun currentValue(key: String): String? = prefs.all[key]?.toString()
 
     override suspend fun write(key: String, value: String?) {
         prefs.edit().apply {

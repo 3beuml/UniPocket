@@ -25,6 +25,13 @@ data class SchedulePrefs(
     val showTeacher: Boolean = false,
     /** 课程块里是否显示教室 */
     val showRoom: Boolean = true,
+    /**
+     * 背景图 URI（由 App 自行选择与授权，框架只透传）。
+     * null = 不用背景图。
+     */
+    val backgroundUri: String? = null,
+    /** 背景图上盖一层主题色半透明遮罩，保证文字可读 */
+    val backgroundDim: Boolean = true,
 ) {
     companion object {
         /** 默认种子色：偏蓝的靛色，浅色/深色下对比都够 */
@@ -35,14 +42,18 @@ data class SchedulePrefs(
         const val KEY_SHOW_WEEKEND = "display.showWeekend"
         const val KEY_SHOW_TEACHER = "display.showTeacher"
         const val KEY_SHOW_ROOM = "display.showRoom"
+        const val KEY_BACKGROUND_URI = "appearance.backgroundUri"
+        const val KEY_BACKGROUND_DIM = "appearance.backgroundDim"
 
-        /** 顺序必须与 [PrefsRepository] 的 combine 一致 */
+        /** 顺序必须与 [PrefsRepository] 的 combine 解析一致 */
         val KEYS: List<String> = listOf(
             KEY_DARK_MODE,
             KEY_THEME_SEED,
             KEY_SHOW_WEEKEND,
             KEY_SHOW_TEACHER,
             KEY_SHOW_ROOM,
+            KEY_BACKGROUND_URI,
+            KEY_BACKGROUND_DIM,
         )
     }
 }

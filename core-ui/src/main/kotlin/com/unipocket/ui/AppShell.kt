@@ -3,12 +3,14 @@ package com.unipocket.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 
 /**
@@ -39,6 +41,7 @@ fun AppShell(
     selectedTabId: String,
     onTabSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.background,
     topBar: @Composable (AppTab) -> Unit = {},
     content: @Composable (tab: AppTab) -> Unit,
 ) {
@@ -47,6 +50,7 @@ fun AppShell(
 
     Scaffold(
         modifier = modifier,
+        containerColor = containerColor,
         topBar = { topBar(selected) },
         bottomBar = {
             NavigationBar {

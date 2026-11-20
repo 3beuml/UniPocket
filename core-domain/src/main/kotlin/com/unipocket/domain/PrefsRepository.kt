@@ -38,6 +38,8 @@ class PrefsRepository(
                     showWeekend = values[2]?.toBooleanStrictOrNull() ?: true,
                     showTeacher = values[3]?.toBooleanStrictOrNull() ?: false,
                     showRoom = values[4]?.toBooleanStrictOrNull() ?: true,
+                    backgroundUri = values[5]?.takeIf { it.isNotBlank() },
+                    backgroundDim = values[6]?.toBooleanStrictOrNull() ?: true,
                 )
             }.collect { _prefs.value = it }
         }
@@ -53,7 +55,11 @@ class PrefsRepository(
 
     fun setShowRoom(show: Boolean) = write(SchedulePrefs.KEY_SHOW_ROOM, show.toString())
 
-    private fun write(key: String, value: String) {
+    fun setBackgroundUri(uri: String?) = write(SchedulePrefs.KEY_BACKGROUND_URI, uri)
+
+    fun setBackgroundDim(dim: Boolean) = write(SchedulePrefs.KEY_BACKGROUND_DIM, dim.toString())
+
+    private fun write(key: String, value: String?) {
         scope.launch { store.write(key, value) }
     }
 
