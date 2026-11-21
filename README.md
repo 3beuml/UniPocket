@@ -7,7 +7,7 @@
 > 状态：**公开开发中，v0.1 尚未发布**（API 与目录结构仍可能变动，请勿直接用于生产）。
 > 当前已完成：Gradle 骨架、契约与偏好模型、今天/课表/空教室/专注/设置五个页面、
 > 一周课表与今天两个桌面组件（含行高账本与小组件设置）、背景图、手动补录/编辑、
-> 可配置底栏、改名脚本与 CI（共 74 个单测）。
+> 可配置底栏、改名脚本与 CI（46 个单测，核心链路已过真机回归）。
 > 冲突警示、今天页「下一节课」卡片、番茄钟记录统计（今日/累计 + 7 天柱状图）均已落地。
 > **v0.1 功能清单全部完成**，剩余为发布事务（tag/Release 需用户同意）与后续打磨。
 
@@ -25,7 +25,7 @@
 
 ## 它提供什么
 
-- `core-domain` — 契约模型与接口（`Course`、`Semester`、`Period`、`LocationNode`、`SchoolConfig`、`ScheduleSource`、`RoomSource`、偏好读写接口、统一错误类型）。**不含数据库、不含网络实现。**
+- `core-domain` — 契约模型与接口（`Session`、`Semester`、`Period`、`LocationNode`、`ScheduleSource`/`EditableScheduleSource`、`RoomSource`、`UiPrefs` 偏好体系、统一错误类型）。**不含数据库、不含网络实现。**
 - `core-ui` — **必选基础**：无状态 Compose 组件 + 官方 ViewModel（今天时间轴、课表网格、周翻页、课程详情、错误/加载/空态）+ 可配置 `AppShell(tabs = …)` + 主题与背景层。
 - `feature-room` — 空教室页（**可选模块**）。
 - `feature-settings` — 设置页：深色模式、主题色、显示项开关（**可选模块**）。
@@ -44,8 +44,8 @@
    ```bash
    ./tools/rename.sh --package com.yourschool.pocket --app-name "你的课程表"
    ```
-2. 填 `SchoolConfig`（节次时间表、学期起始日、总周数）。
-3. 实现 `ScheduleSource`（把自家教务的课表转成 `Course`），可选实现 `RoomSource`。
+2. 填节次表与学期（`Period` 列表 + `Semester`：起始日、教学周列表）。
+3. 实现 `ScheduleSource`（把自家教务的课表转成 `Session`——**每周一条**），可选实现 `RoomSource`。
 4. 用你的 Source 替换 demo 里的假数据源。
 
 界面代码一行都不用改。完整步骤、代码示例与常见坑见 **[docs/INTEGRATION.md](docs/INTEGRATION.md)**。
