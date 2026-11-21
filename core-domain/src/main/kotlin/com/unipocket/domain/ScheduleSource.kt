@@ -4,8 +4,8 @@ package com.unipocket.domain
  * 课表数据来源。外校接入时**只需要实现这个接口**，界面代码不用动。
  *
  * 约定：
- * - 返回整个学期的全部上课安排（不按周过滤；按周取用 [inWeek]）。
- * - 同一节课多次调用必须返回稳定的 [Course.id]。
+ * - 返回整个学期的全部上课安排（每条 Session 对应一周中的某个时段）。
+ * - 同一节课多次调用必须返回稳定的 [Session.id]。
  * - 失败时抛 [UniPocketException] 的子类，界面据此统一展示。
  * - 不要求实现缓冲/缓存；框架的 ViewModel 负责"先显示缓存再刷新"。
  */
@@ -13,15 +13,23 @@ interface ScheduleSource {
     /** 来源标识，用于日志与多个来源的去重归因，如 "eas" / "gms" / "manual" */
     val id: String
 
-    suspend fun loadCourses(): List<Course>
+    suspend fun loadSessions(): List<Session>
 }
 
 /**
- * 把多个来源拼成一个。
- *
- * 去重规则见 [Course.dedupKey]：课名、教师、教室、周次、星期、节次全部相同即视为同一节课，
- * 保留**先出现的那个来源**的版本。任一来源抛异常则整体失败——避免"部分数据看起来正常、
- * 实际缺了一半"更难排查。
+ * 支持增删改的数据源 —— 手动补录一般实现它。
+ */
+interface EditableScheduleSource : ScheduleSource {
+    /** 新增或按 id 覆盖 */
+    suspend fun upsert(session: Session)
+    /** 删除本来源管理的课 */
+    suspend fun delete(id: String)
+    /** 该 id 是否由本来源管理 */
+    suspend fun manages(id: String): Boolean
+}
+
+/**
+ * 把多个来源拼成一个。去重规则：课名 + 星期 + 起止节次相同即视为同一节课。
  */
 class MergedScheduleSource(vararg sources: ScheduleSource) : ScheduleSource {
 
@@ -33,8 +41,8 @@ class MergedScheduleSource(vararg sources: ScheduleSource) : ScheduleSource {
 
     override val id: String = this.sources.joinToString("+") { it.id }
 
-    override suspend fun loadCourses(): List<Course> =
+    override suspend fun loadSessions(): List<Session> =
         sources
-            .flatMap { it.loadCourses() }
-            .distinctBy { it.dedupKey() }
+            .flatMap { it.loadSessions() }
+            .distinctBy { listOf(it.courseName, it.weekday, it.startUnit, it.endUnit, it.weekIndex) }
 }
