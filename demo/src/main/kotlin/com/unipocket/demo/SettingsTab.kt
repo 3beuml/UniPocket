@@ -9,12 +9,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.unipocket.domain.prefs.UiPrefsRepository
-import com.unipocket.feature.settings.SettingsScreen
+import com.unipocket.feature.settings.DisplaySettingsScreen
 
 /** 设置页：把偏好仓储接到框架提供的设置界面上 */
 @Composable
 fun SettingsTab(repository: UiPrefsRepository, modifier: Modifier = Modifier) {
     val prefs by repository.prefs.collectAsStateWithLifecycle()
+    val backgroundPainter = rememberBackgroundPainter(prefs.backgroundPath)
     val context = LocalContext.current
 
     // 用 OpenDocument（而不是照片选择器）：拿到长期可读的授权，重启后背景图仍在
@@ -30,18 +31,11 @@ fun SettingsTab(repository: UiPrefsRepository, modifier: Modifier = Modifier) {
         }
     }
 
-    SettingsScreen(
-        prefs = prefs,
-        onDarkModeChange = repository::setDarkMode,
-        onThemePresetChange = { repository.setThemePreset(it) },
-        onShowWeekendChange = repository::setShowWeekend,
-        onCourseTextModeChange = repository::setCourseTextMode,
-        onPickBackground = { pickImage.launch(arrayOf("image/*")) },
-        onClearBackground = { repository.clearBackground() },
-        onBackgroundScrimChange = repository::setBackgroundScrim,
-        onWidgetWeekShowPlaceChange = repository::setWidgetWeekShowPlace,
-        onWidgetWeekShowTimeChange = repository::setWidgetWeekShowTime,
-        onWidgetWeekendStripChange = repository::setWidgetWeekendStrip,
-        modifier = modifier,
+    DisplaySettingsScreen(
+        repository = repository,
+        backgroundPainter = backgroundPainter,
+        onBack = { },
+        onPickImage = { pickImage.launch(arrayOf("image/*")) },
+modifier = modifier,
     )
 }

@@ -34,6 +34,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core-ui"))
+    implementation(libs.androidx.lifecycle.runtime.compose)
 
     testImplementation(libs.junit)
 }
