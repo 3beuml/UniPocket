@@ -134,7 +134,12 @@ fun UniPocketNavHost(
                 contentColor = MaterialTheme.colorScheme.onSurface,
             ) { _ ->
                 val selected = destinations.firstOrNull { it.id == selectedTabId } ?: destinations.first()
-                Box(Modifier.fillMaxSize().statusBarsPadding()) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .padding(bottom = DOCK_CLEARANCE),
+                ) {
                     content(selected)
                 }
             }
