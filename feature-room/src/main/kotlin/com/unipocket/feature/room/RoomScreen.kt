@@ -70,7 +70,7 @@ fun RoomScreen(
 
         if (state.isRefreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
 
-        Box(Modifier.weight(1f)) {
+        Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 state.isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 state.allRooms.isEmpty() && !state.isLoading -> Text(

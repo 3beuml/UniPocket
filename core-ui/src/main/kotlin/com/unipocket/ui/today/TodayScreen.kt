@@ -77,7 +77,7 @@ fun TodayScreen(
             )
         }
 
-        Box(Modifier.weight(1f)) {
+        Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
 
