@@ -77,7 +77,7 @@ private fun DemoApp() {
                 "focus" -> FocusTab()
                 "settings" -> SettingsTab(uiPrefsRepository)
                 "schedule" -> TimetableTab(prefs = prefs)
-                else -> TodayTab()
+                else -> TodayTab(prefs = prefs)
             }
         },
     )
