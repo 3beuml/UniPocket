@@ -186,7 +186,7 @@ private fun PeriodColumn(
                     text = "$unit",
                     style = MaterialTheme.typography.labelMedium.copy(shadow = labelShadow),
                 )
-                periods.firstOrNull { it.index == unit }?.let {
+                periods.firstOrNull { it.indexNo == unit }?.let {
                     if (showTime) {
                         Text(
                             text = "${it.startText}-${it.endText}",
@@ -273,7 +273,7 @@ private fun CourseBlock(
     val bg = when {
         placeholder -> MaterialTheme.colorScheme.errorContainer
         prefs.colorMode == CourseColorMode.SINGLE -> MaterialTheme.colorScheme.secondaryContainer
-        else -> courseColor(slot.id, dark)
+        else -> courseColor(slot.courseCode, dark)
     }
     val decoration = when {
         placeholder -> Modifier.border(
@@ -442,10 +442,19 @@ internal fun isLiveNow(
     now: LocalTime,
     weekMonday: LocalDate?,
 ): Boolean {
-    val slotDate = weekMonday?.plusDays((slot.dayOfWeek - 1).toLong()) ?: return false
+    // 有真实日期（调休/补课）按日期，否则按「本周 + 星期几」推
+    val slotDate = slot.date?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        ?: weekMonday?.plusDays((slot.dayOfWeek - 1).toLong())
+        ?: return false
     if (slotDate != today) return false
-    val start = periods.firstOrNull { it.index == slot.startPeriod }?.start ?: return false
-    val end = periods.firstOrNull { it.index == slot.endPeriod }?.end ?: return false
+    val startText = periods.firstOrNull { it.indexNo == slot.startPeriod }?.startText
+        ?: slot.startTime
+        ?: return false
+    val endText = periods.firstOrNull { it.indexNo == slot.endPeriod }?.endText
+        ?: slot.endTime
+        ?: return false
+    val start = runCatching { LocalTime.parse(startText) }.getOrNull() ?: return false
+    val end = runCatching { LocalTime.parse(endText) }.getOrNull() ?: return false
     return !now.isBefore(start) && !now.isAfter(end)
 }
 

@@ -3,7 +3,6 @@ package com.unipocket.feature.room
 import com.unipocket.domain.LocationNode
 import com.unipocket.domain.Period
 import com.unipocket.domain.RoomSource
-import com.unipocket.domain.SchoolConfig
 import com.unipocket.domain.Semester
 import com.unipocket.domain.UniPocketException
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -13,19 +12,25 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
-import java.time.LocalTime
 
 class RoomStoreTest {
 
-    private val config = SchoolConfig(
-        schoolName = "测试大学",
-        periods = listOf(
-            Period(1, LocalTime.of(8, 0), LocalTime.of(8, 45)),
-            Period(2, LocalTime.of(8, 55), LocalTime.of(9, 40)),
-            Period(3, LocalTime.of(10, 0), LocalTime.of(10, 45)),
-            Period(4, LocalTime.of(10, 55), LocalTime.of(11, 40)),
-        ),
-        semester = Semester("测试学期", LocalDate.of(2026, 8, 31), 20),
+    private val periods = listOf(
+        Period(1, "第1节", 800, 845, "MORNING", 0),
+        Period(2, "第2节", 855, 940, "MORNING", 0),
+        Period(3, "第3节", 1000, 1045, "MORNING", 1),
+        Period(4, "第4节", 1055, 1140, "MORNING", 1),
+    )
+
+    private val semester = Semester(
+        id = 1,
+        nameZh = "测试学期",
+        schoolYear = "2026-2027",
+        startDate = LocalDate.of(2026, 8, 31),
+        endDate = null,
+        weekStartOnSunday = false,
+        weekIndices = (1..20).toList(),
+        isCurrent = true,
     )
 
     /** 第 2 周周二 */
@@ -73,7 +78,7 @@ class RoomStoreTest {
 
     @Test
     fun `默认按今天星期与第 1 节查询，并按楼栋分组`() = runTest {
-        val store = RoomStore(config, FakeSource(tree), this) { today }
+        val store = RoomStore(periods, semester, FakeSource(tree), this) { today }
 
         store.start()
         advanceUntilIdle()
@@ -90,7 +95,7 @@ class RoomStoreTest {
     @Test
     fun `切换楼栋只在本地过滤，不重新请求`() = runTest {
         val source = FakeSource(tree)
-        val store = RoomStore(config, source, this) { today }
+        val store = RoomStore(periods, semester, source, this) { today }
 
         store.start()
         advanceUntilIdle()
@@ -106,7 +111,7 @@ class RoomStoreTest {
     @Test
     fun `setPeriod 更新筛选节次（矩阵已包含全节次数据无需重查）`() = runTest {
         val source = FakeSource(tree)
-        val store = RoomStore(config, source, this) { today }
+        val store = RoomStore(periods, semester, source, this) { today }
 
         store.start()
         advanceUntilIdle()
@@ -121,7 +126,7 @@ class RoomStoreTest {
     @Test
     fun `查询失败暴露错误`() = runTest {
         val source = FakeSource(tree).apply { fail = true }
-        val store = RoomStore(config, source, this) { today }
+        val store = RoomStore(periods, semester, source, this) { today }
 
         store.start()
         advanceUntilIdle()
@@ -134,7 +139,7 @@ class RoomStoreTest {
     @Test
     fun `占用矩阵包含所有节次的空闲信息`() = runTest {
         val source = FakeSource(tree).apply { rooms = tree.flatten().filter { it.isLeaf }.toList() }
-        val store = RoomStore(config, source, this) { today }
+        val store = RoomStore(periods, semester, source, this) { today }
 
         store.start()
         advanceUntilIdle()
@@ -150,7 +155,7 @@ class RoomStoreTest {
     @Test
     fun `越界的星期与节次被忽略`() = runTest {
         val source = FakeSource(tree)
-        val store = RoomStore(config, source, this) { today }
+        val store = RoomStore(periods, semester, source, this) { today }
 
         store.start()
         advanceUntilIdle()

@@ -24,19 +24,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.unipocket.domain.Course
+import com.unipocket.core.ScheduleText
 import com.unipocket.domain.MergedScheduleSource
+import com.unipocket.domain.Session
 import com.unipocket.domain.prefs.UiPrefs
 import com.unipocket.ui.common.UniPocketErrorBanner
 import com.unipocket.ui.schedule.CourseEditorDialog
 import com.unipocket.ui.schedule.ScheduleGrid
+import com.unipocket.ui.schedule.ScheduleSlot
 import com.unipocket.ui.schedule.ScheduleViewModel
 import com.unipocket.ui.schedule.WeekHeader
 import com.unipocket.ui.schedule.expandByWeek
+import java.time.LocalDate
 
 @Composable
 fun TimetableTab(prefs: UiPrefs, modifier: Modifier = Modifier) {
-    val config = FakeData.config
+    val semester = FakeData.semester
+    val periods = FakeData.periods
     val context = LocalContext.current
     val manualSource = remember {
         ManualCourseSource(context.getSharedPreferences("unipocket_demo", Context.MODE_PRIVATE))
@@ -44,15 +48,17 @@ fun TimetableTab(prefs: UiPrefs, modifier: Modifier = Modifier) {
     val source = remember { MergedScheduleSource(FakeScheduleSource(), manualSource) }
     val viewModel: ScheduleViewModel = viewModel(
         key = "timetable",
-        factory = ScheduleViewModel.factory(config, source, editableSource = manualSource),
+        factory = ScheduleViewModel.factory(semester, source, editableSource = manualSource),
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    var selectedCourse by remember { mutableStateOf<Course?>(null) }
+    var selectedSlot by remember { mutableStateOf<ScheduleSlot?>(null) }
+    /** 点中的课在全学期的全部周记录（假数据直接查 FakeData，手动课查手动源） */
+    var selectedSiblings by remember { mutableStateOf<List<Session>>(emptyList()) }
     var manageable by remember { mutableStateOf(false) }
     var editorOpen by remember { mutableStateOf(false) }
-    var editorTarget by remember { mutableStateOf<Course?>(null) }
-    var confirmDelete by remember { mutableStateOf<Course?>(null) }
+    var editorTarget by remember { mutableStateOf<ScheduleSlot?>(null) }
+    var confirmDelete by remember { mutableStateOf<ScheduleSlot?>(null) }
 
     Column(modifier.fillMaxSize()) {
         WeekHeader(
@@ -70,25 +76,16 @@ fun TimetableTab(prefs: UiPrefs, modifier: Modifier = Modifier) {
 
         Box(Modifier.weight(1f)) {
             ScheduleGrid(
-                slots = state.courses.expandByWeek(state.week),
-                periods = config.periods,
+                slots = state.sessions.expandByWeek(state.week),
+                periods = periods,
                 prefs = prefs,
                 weekMonday = remember(state.week) {
-                    config.semester.firstWeekStart.plusDays((state.week - 1) * 7L)
+                    ScheduleText.mondayOf(semester.startDate, state.week)
                 },
                 conflictChoices = emptyList(),
                 week = state.week,
                 onBlockClick = { block ->
-                    val slot = block.displaySlot
-                    selectedCourse = Course(
-                        id = slot.id.split("#").first(),
-                        name = slot.name,
-                        teacher = slot.teacher,
-                        room = slot.room,
-                        weeks = setOf(slot.week),
-                        dayOfWeek = slot.dayOfWeek,
-                        periods = slot.startPeriod..slot.endPeriod,
-                    )
+                    selectedSlot = block.displaySlot
                 },
             )
 
@@ -113,33 +110,58 @@ fun TimetableTab(prefs: UiPrefs, modifier: Modifier = Modifier) {
         }
     }
 
-    selectedCourse?.let { course ->
-        LaunchedEffect(course.id) { manageable = manualSource.manages(course.id) }
+    // 选中格子后，查这门课在全学期的周记录与可编辑性
+    LaunchedEffect(selectedSlot?.id) {
+        val slot = selectedSlot ?: return@LaunchedEffect
+        manageable = manualSource.manages(slot.id)
+        selectedSiblings = if (manageable) {
+            manualSource.loadSessions().filter {
+                it.courseCode == slot.courseCode &&
+                    it.weekday == slot.dayOfWeek &&
+                    it.startUnit == slot.startPeriod
+            }
+        } else {
+            FakeData.sessions.filter {
+                it.courseCode == slot.courseCode &&
+                    it.weekday == slot.dayOfWeek &&
+                    it.startUnit == slot.startPeriod
+            }
+        }
+    }
+
+    selectedSlot?.let { slot ->
         CourseDetailDialog(
-            course = course,
+            slot = slot,
+            weeks = selectedSiblings.map { it.weekIndex },
             manageable = manageable,
-            onDismiss = { selectedCourse = null },
-            onEdit = { selectedCourse = null; editorTarget = course; editorOpen = true },
-            onDelete = { selectedCourse = null; confirmDelete = course },
+            onDismiss = { selectedSlot = null },
+            onEdit = { selectedSlot = null; editorTarget = slot; editorOpen = true },
+            onDelete = { selectedSlot = null; confirmDelete = slot },
         )
     }
 
     if (editorOpen) {
         CourseEditorDialog(
-            config = config,
-            initial = editorTarget,
-            onSave = { editorOpen = false; viewModel.upsertCourse(it) },
+            weeks = semester.weekIndices,
+            periodCount = periods.size,
+            semesterId = semester.id,
+            initial = editorTarget?.let { slot -> selectedSiblings.takeIf { it.isNotEmpty() && manageable } },
+            onSave = { editorOpen = false; viewModel.upsertSessions(it) },
             onDismiss = { editorOpen = false },
         )
     }
 
-    confirmDelete?.let { course ->
+    confirmDelete?.let { slot ->
         AlertDialog(
             onDismissRequest = { confirmDelete = null },
             title = { Text("删除课程") },
-            text = { Text("确定删除「${course.name}」吗？此操作不可撤销。") },
+            text = { Text("确定删除「${slot.name}」的全部周次吗？此操作不可撤销。") },
             confirmButton = {
-                TextButton(onClick = { confirmDelete = null; viewModel.deleteCourse(course.id) }) { Text("删除") }
+                TextButton(onClick = {
+                    confirmDelete = null
+                    // 新模型一门课 = 多条周记录，逐条删；load 有单飞保护不会抖
+                    selectedSiblings.forEach { viewModel.deleteSession(it.id) }
+                }) { Text("删除") }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text("取消") } },
         )
@@ -148,7 +170,8 @@ fun TimetableTab(prefs: UiPrefs, modifier: Modifier = Modifier) {
 
 @Composable
 private fun CourseDetailDialog(
-    course: Course,
+    slot: ScheduleSlot,
+    weeks: List<Int>,
     manageable: Boolean,
     onDismiss: () -> Unit,
     onEdit: () -> Unit,
@@ -156,22 +179,26 @@ private fun CourseDetailDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(course.name) },
+        title = { Text(slot.name) },
         text = {
             Column {
-                course.teacher?.let { Text("教师：$it", style = MaterialTheme.typography.bodyMedium) }
-                course.room?.let { Text("教室：$it", style = MaterialTheme.typography.bodyMedium) }
+                slot.teacher?.let { Text("教师：$it", style = MaterialTheme.typography.bodyMedium) }
+                slot.room?.let { Text("教室：$it", style = MaterialTheme.typography.bodyMedium) }
                 Text(
-                    text = "时间：周${course.dayOfWeek} 第${course.startPeriod}-${course.endPeriod}节",
+                    text = "时间：${ScheduleText.weekdayName(slot.dayOfWeek)} 第${slot.startPeriod}-${slot.endPeriod}节",
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                Text("周次：${course.weeksText}", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = "周次：${ScheduleText.compressWeeks(weeks)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
         dismissButton = {
             if (manageable) {
                 TextButton(onClick = onEdit) { Text("编辑") }
+                TextButton(onClick = onDelete) { Text("删除") }
             }
         },
     )

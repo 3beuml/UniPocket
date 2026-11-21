@@ -44,8 +44,12 @@ class TodayWidgetProvider : AppWidgetProvider() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
             try {
-                val config = FakeData.config
-                val courses = FakeScheduleSource(delayMillis = 0).loadCourses()
+                val semester = FakeData.semester
+                val sessions = FakeScheduleSource(delayMillis = 0).loadSessions()
+                val week = com.unipocket.domain.WeekAlignment.indexOf(
+                    semester.startDate, semester.weekStartOnSunday, semester.weekIndices,
+                    LocalDate.now(),
+                ) ?: 1
 
                 val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
                 val widthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
@@ -65,9 +69,9 @@ class TodayWidgetProvider : AppWidgetProvider() {
 
                 val views = TodayWidgetRenderer.render(
                     context = context,
-                    config = config,
-                    courses = courses,
-                    week = config.semester.currentWeek() ?: 1,
+                    sessions = sessions,
+                    periods = FakeData.periods,
+                    week = week,
                     date = LocalDate.now(),
                     now = LocalTime.now(),
                     reportedWidthDp = widthDp,

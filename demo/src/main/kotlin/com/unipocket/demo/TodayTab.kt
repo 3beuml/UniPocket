@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.unipocket.domain.TodayStatus
+import com.unipocket.domain.WeekAlignment
 import com.unipocket.domain.todayItems
 import com.unipocket.domain.prefs.UiPrefs
 import com.unipocket.ui.components.GlassCard
@@ -55,11 +56,12 @@ private val HH_MM = DateTimeFormatter.ofPattern("HH:mm")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TodayTab(prefs: UiPrefs, modifier: Modifier = Modifier) {
-    val config = FakeData.config
+    val semester = FakeData.semester
+    val periods = FakeData.periods
     val source = remember { FakeScheduleSource() }
     val viewModel: ScheduleViewModel = viewModel(
         key = "today",
-        factory = ScheduleViewModel.factory(config, source),
+        factory = ScheduleViewModel.factory(semester, source),
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -69,8 +71,14 @@ fun TodayTab(prefs: UiPrefs, modifier: Modifier = Modifier) {
     }
 
     val today = LocalDate.now()
-    val items = remember(state.courses, now, today) {
-        state.courses.todayItems(config, today.dayOfWeek.value, now)
+    val currentWeek = remember(semester, today) {
+        WeekAlignment.indexOf(semester.startDate, semester.weekStartOnSunday, semester.weekIndices, today) ?: 1
+    }
+    // 只看本周的课，再取今天星期几
+    val items = remember(state.sessions, now, currentWeek, today) {
+        state.sessions
+            .filter { it.weekIndex == currentWeek }
+            .todayItems(periods, today.dayOfWeek.value, now)
     }
 
     Scaffold(
@@ -107,7 +115,7 @@ fun TodayTab(prefs: UiPrefs, modifier: Modifier = Modifier) {
                         Text("今天", style = MaterialTheme.typography.titleMedium)
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "第 ${config.semester.currentWeek() ?: 1} 周",
+                            text = "第 $currentWeek 周",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -187,7 +195,7 @@ private fun TimelineRow(item: com.unipocket.domain.TodayItem, now: LocalTime) {
         )
         Column(Modifier.weight(1f)) {
             Text(
-                text = item.course.name,
+                text = item.session.courseName,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (item.status == TodayStatus.ONGOING) FontWeight.Medium else FontWeight.Normal,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha),
@@ -195,8 +203,8 @@ private fun TimelineRow(item: com.unipocket.domain.TodayItem, now: LocalTime) {
                 overflow = TextOverflow.Ellipsis,
             )
             val detail = listOfNotNull(
-                item.course.room?.takeIf { it.isNotBlank() },
-                item.course.teacher?.takeIf { it.isNotBlank() },
+                item.session.roomText?.takeIf { it.isNotBlank() },
+                item.session.teacherName?.takeIf { it.isNotBlank() },
             ).joinToString(" · ")
             if (detail.isNotBlank()) {
                 Text(

@@ -23,10 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.unipocket.domain.Course
-import com.unipocket.domain.SchoolConfig
-import com.unipocket.domain.parseWeeksText
-import com.unipocket.domain.weeksToText
+import com.unipocket.domain.Session
 import java.util.UUID
 
 private enum class WeeksMode { ALL, ODD, EVEN, CUSTOM }
@@ -36,54 +33,61 @@ private val DAY_LABELS = listOf("一", "二", "三", "四", "五", "六", "日")
 /**
  * 补录/编辑课程的弹窗（无状态壳 + 内部表单状态）。
  *
- * 周次提供「每周 / 单周 / 双周 / 自定义」四档；自定义用 [parseWeeksText] 解析，
- * 非法输入整体拒绝。保存时生成稳定 id（新课时 `manual-<uuid>`，编辑保留原 id）。
+ * 新模型一条 [Session] 只对应一个教学周，所以"一门课"在这里是表单 + 周次集合，
+ * 保存时展开成每周一条的 [Session] 列表交给调用方逐条 upsert。
+ * 周次提供「每周 / 单周 / 双周 / 自定义」四档；自定义按 `1-8,10-16` 解析（[weeksFromText]），
+ * 非法输入整体拒绝。编辑时已存在的周沿用原 id（保住冲突选择记忆），新周生成新 id。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CourseEditorDialog(
-    config: SchoolConfig,
-    initial: Course?,
-    onSave: (Course) -> Unit,
+    /** 可选教学周（如 [com.unipocket.domain.Semester.weekIndices]），决定"每周"档的范围 */
+    weeks: List<Int>,
+    periodCount: Int,
+    /** 新建记录挂在哪个学期下 */
+    semesterId: Int,
+    /** 编辑时传同一门课（同 courseCode）的全部周记录；null = 新增 */
+    initial: List<Session>?,
+    onSave: (List<Session>) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var name by remember { mutableStateOf(initial?.name.orEmpty()) }
-    var teacher by remember { mutableStateOf(initial?.teacher.orEmpty()) }
-    var room by remember { mutableStateOf(initial?.room.orEmpty()) }
-    var day by remember { mutableStateOf(initial?.dayOfWeek ?: 1) }
-    var start by remember { mutableStateOf(initial?.startPeriod ?: 1) }
-    var end by remember { mutableStateOf(initial?.endPeriod ?: minOf(2, config.periodCount)) }
+    val head = initial?.firstOrNull()
+    var name by remember { mutableStateOf(head?.courseName.orEmpty()) }
+    var teacher by remember { mutableStateOf(head?.teacherName.orEmpty()) }
+    var room by remember { mutableStateOf(head?.roomText.orEmpty()) }
+    var day by remember { mutableStateOf(head?.weekday ?: 1) }
+    var start by remember { mutableStateOf(head?.startUnit ?: 1) }
+    var end by remember { mutableStateOf(head?.endUnit ?: minOf(2, periodCount)) }
 
-    val allWeeks = remember { (1..config.semester.weekCount).toSet() }
-    val oddWeeks = remember { allWeeks.filter { it % 2 == 1 }.toSet() }
-    val evenWeeks = remember { allWeeks.filter { it % 2 == 0 }.toSet() }
+    val allWeeks = remember { weeks.filter { it > 0 }.distinct().sorted() }
+    val oddWeeks = remember { allWeeks.filter { it % 2 == 1 } }
+    val evenWeeks = remember { allWeeks.filter { it % 2 == 0 } }
+    val initialWeeks = remember { initial.orEmpty().map { it.weekIndex }.distinct().sorted() }
     var weeksMode by remember {
         mutableStateOf(
             when {
-                initial == null -> WeeksMode.ALL
-                initial.weeks == allWeeks -> WeeksMode.ALL
-                initial.weeks == oddWeeks -> WeeksMode.ODD
-                initial.weeks == evenWeeks -> WeeksMode.EVEN
+                initialWeeks.isEmpty() -> WeeksMode.ALL
+                initialWeeks == allWeeks -> WeeksMode.ALL
+                initialWeeks == oddWeeks -> WeeksMode.ODD
+                initialWeeks == evenWeeks -> WeeksMode.EVEN
                 else -> WeeksMode.CUSTOM
             },
         )
     }
     var customText by remember {
-        mutableStateOf(
-            if (weeksMode == WeeksMode.CUSTOM && initial != null) weeksToText(initial.weeks) else "",
-        )
+        mutableStateOf(if (weeksMode == WeeksMode.CUSTOM) weeksToText(initialWeeks) else "")
     }
 
-    val weeks: Set<Int> = when (weeksMode) {
+    val selectedWeeks: List<Int> = when (weeksMode) {
         WeeksMode.ALL -> allWeeks
         WeeksMode.ODD -> oddWeeks
         WeeksMode.EVEN -> evenWeeks
-        WeeksMode.CUSTOM -> parseWeeksText(customText) ?: emptySet()
+        WeeksMode.CUSTOM -> weeksFromText(customText).filter { it in allWeeks }
     }
 
-    val invalidWeeks = weeksMode == WeeksMode.CUSTOM && customText.isNotBlank() && weeks.isEmpty()
+    val invalidWeeks = weeksMode == WeeksMode.CUSTOM && customText.isNotBlank() && selectedWeeks.isEmpty()
     val invalidRange = start > end
-    val valid = name.isNotBlank() && weeks.isNotEmpty() && !invalidRange
+    val valid = name.isNotBlank() && selectedWeeks.isNotEmpty() && !invalidRange
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -144,14 +148,14 @@ fun CourseEditorDialog(
                         start = it
                         if (end < it) end = it
                     },
-                    periodCount = config.periodCount,
+                    periodCount = periodCount,
                 )
 
                 Text("结束节次", style = MaterialTheme.typography.labelMedium)
                 PeriodChips(
                     selected = end,
                     onSelect = { end = it },
-                    periodCount = config.periodCount,
+                    periodCount = periodCount,
                 )
 
                 Text("周次", style = MaterialTheme.typography.labelMedium)
@@ -161,8 +165,8 @@ fun CourseEditorDialog(
                             selected = weeksMode == mode,
                             onClick = {
                                 weeksMode = mode
-                                if (mode == WeeksMode.CUSTOM && customText.isBlank() && initial != null) {
-                                    customText = weeksToText(initial.weeks)
+                                if (mode == WeeksMode.CUSTOM && customText.isBlank() && initialWeeks.isNotEmpty()) {
+                                    customText = weeksToText(initialWeeks)
                                 }
                             },
                             label = {
@@ -207,16 +211,36 @@ fun CourseEditorDialog(
             TextButton(
                 enabled = valid,
                 onClick = {
+                    val oldById = initial.orEmpty().associateBy { it.weekIndex }
                     onSave(
-                        Course(
-                            id = initial?.id ?: "manual-${UUID.randomUUID()}",
-                            name = name.trim(),
-                            teacher = teacher.trim().takeIf { it.isNotBlank() },
-                            room = room.trim().takeIf { it.isNotBlank() },
-                            weeks = weeks,
-                            dayOfWeek = day,
-                            periods = start..end,
-                        ),
+                        selectedWeeks.map { week ->
+                            val previous = oldById[week]
+                            previous?.copy(
+                                courseName = name.trim(),
+                                teacherName = teacher.trim().takeIf { it.isNotBlank() },
+                                roomText = room.trim().takeIf { it.isNotBlank() },
+                                weekday = day,
+                                startUnit = start,
+                                endUnit = end,
+                            ) ?: Session(
+                                id = "manual-${UUID.randomUUID()}-w$week",
+                                semesterId = semesterId,
+                                source = "custom",
+                                courseCode = name.trim(),
+                                courseName = name.trim(),
+                                weekIndex = week,
+                                weekday = day,
+                                startUnit = start,
+                                endUnit = end,
+                                date = null,
+                                startTime = null,
+                                endTime = null,
+                                teacherName = teacher.trim().takeIf { it.isNotBlank() },
+                                roomText = room.trim().takeIf { it.isNotBlank() },
+                                campusText = null,
+                                color = null,
+                            )
+                        },
                     )
                 },
             ) { Text("保存") }
@@ -225,6 +249,45 @@ fun CourseEditorDialog(
             TextButton(onClick = onDismiss) { Text("取消") }
         },
     )
+}
+
+/** "1-8,10-16" → [1..8, 10..16]；识别不出返回空表 */
+internal fun weeksFromText(text: String): List<Int> {
+    val weeks = mutableListOf<Int>()
+    for (part in text.split(',', '，', ' ')) {
+        val trimmed = part.trim()
+        if (trimmed.isEmpty()) continue
+        val range = Regex("^(\\d+)[-–](\\d+)$").find(trimmed)
+        if (range != null) {
+            val from = range.groupValues[1].toIntOrNull() ?: return emptyList()
+            val to = range.groupValues[2].toIntOrNull() ?: return emptyList()
+            if (from > to || to - from > 200) return emptyList()
+            weeks += (from..to).toList()
+        } else {
+            weeks += trimmed.toIntOrNull() ?: return emptyList()
+        }
+    }
+    return weeks.distinct().sorted()
+}
+
+/** [1,2,3,6,8] → "1-3,6,8"（回填输入框用；与 [weeksFromText] 互逆） */
+internal fun weeksToText(weeks: List<Int>): String {
+    val w = weeks.filter { it > 0 }.distinct().sorted()
+    if (w.isEmpty()) return ""
+    val parts = mutableListOf<String>()
+    var start = w.first()
+    var prev = start
+    for (cur in w.drop(1)) {
+        if (cur == prev + 1) {
+            prev = cur
+            continue
+        }
+        parts += if (start == prev) "$start" else "$start-$prev"
+        start = cur
+        prev = cur
+    }
+    parts += if (start == prev) "$start" else "$start-$prev"
+    return parts.joinToString(",")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

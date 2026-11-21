@@ -1,8 +1,10 @@
 package com.unipocket.feature.room
 
 import com.unipocket.domain.LocationNode
+import com.unipocket.domain.Period
 import com.unipocket.domain.RoomSource
-import com.unipocket.domain.SchoolConfig
+import com.unipocket.domain.Semester
+import com.unipocket.domain.WeekAlignment
 import com.unipocket.domain.toUniPocketException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -49,20 +51,27 @@ data class RoomGroup(
  * 一列一节课的占用格子（绿=空闲，红=有课）。
  */
 class RoomStore(
-    private val config: SchoolConfig,
+    /** 节次表（决定占用矩阵的列数与表头时刻） */
+    private val periods: List<Period>,
+    /** 当前学期；null 时周次固定为 1（没接校历的接入方） */
+    private val semester: Semester?,
     private val source: RoomSource,
     private val scope: CoroutineScope,
     private val clock: () -> LocalDate = { LocalDate.now() },
 ) {
 
+    private val periodCount: Int get() = periods.size
+
     private val today: LocalDate get() = clock()
 
     private val _state = MutableStateFlow(
         RoomUiState(
-            week = config.semester.weekOf(today) ?: 1,
+            week = semester
+                ?.let { WeekAlignment.indexOf(it.startDate, it.weekStartOnSunday, it.weekIndices, today) }
+                ?: 1,
             dayOfWeek = today.dayOfWeek.value,
             periodIndex = 1,
-            periodCount = config.periodCount,
+            periodCount = periodCount,
         ),
     )
     val state: StateFlow<RoomUiState> = _state.asStateFlow()
@@ -85,7 +94,7 @@ class RoomStore(
     }
 
     fun setPeriod(periodIndex: Int) {
-        if (periodIndex !in 1..config.periodCount) return
+        if (periodIndex !in 1..periodCount) return
         _state.update { it.copy(periodIndex = periodIndex) }
     }
 

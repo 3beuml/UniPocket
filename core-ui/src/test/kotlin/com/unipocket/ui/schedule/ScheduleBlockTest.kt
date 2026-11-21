@@ -1,6 +1,8 @@
 package com.unipocket.ui.schedule
 
+import com.unipocket.domain.Session
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -15,8 +17,9 @@ class ScheduleBlockTest {
         week: Int = 1,
     ) = ScheduleSlot(
         id = id, name = name, room = null, teacher = null,
-        colorSeed = 0, week = week, dayOfWeek = day,
+        courseCode = id, week = week, dayOfWeek = day,
         startPeriod = start, endPeriod = end,
+        date = null, startTime = null, endTime = null,
         conflictKey = "$id#$week",
     )
 
@@ -66,26 +69,21 @@ class ScheduleBlockTest {
     }
 
     @Test
-    fun `expandByWeek 只展开该周有课的条目`() {
-        val courses = listOf(
-            com.unipocket.domain.Course(
-                id = "a", name = "高数",
-                weeks = setOf(1, 2, 3), dayOfWeek = 1, periods = 1..2,
-            ),
-            com.unipocket.domain.Course(
-                id = "b", name = "体育",
-                weeks = setOf(5), dayOfWeek = 1, periods = 3..4,
-            ),
+    fun `expandByWeek 只留下该周有课的记录`() {
+        val sessions = listOf(
+            session(id = "a", name = "高数", weekIndex = 1, weekday = 1, startUnit = 1, endUnit = 2),
+            session(id = "b", name = "体育", weekIndex = 5, weekday = 1, startUnit = 3, endUnit = 4),
         )
-        val week1 = courses.expandByWeek(1)
+        val week1 = sessions.expandByWeek(1)
         assertEquals(1, week1.size)
-        assertEquals("a#1", week1[0].id)
+        assertEquals("a", week1[0].id)
+        assertEquals("高数", week1[0].name)
 
-        val week5 = courses.expandByWeek(5)
+        val week5 = sessions.expandByWeek(5)
         assertEquals(1, week5.size)
-        assertEquals("b#5", week5[0].id)
+        assertEquals("b", week5[0].id)
 
-        val week10 = courses.expandByWeek(10)
+        val week10 = sessions.expandByWeek(10)
         assertTrue(week10.isEmpty())
     }
 
@@ -102,4 +100,28 @@ class ScheduleBlockTest {
     }
 }
 
-private fun assertFalse(b: Boolean) = org.junit.Assert.assertFalse(b)
+private fun session(
+    id: String,
+    name: String,
+    weekIndex: Int,
+    weekday: Int,
+    startUnit: Int,
+    endUnit: Int,
+) = Session(
+    id = id,
+    semesterId = 1,
+    source = "eas",
+    courseCode = id,
+    courseName = name,
+    weekIndex = weekIndex,
+    weekday = weekday,
+    startUnit = startUnit,
+    endUnit = endUnit,
+    date = null,
+    startTime = null,
+    endTime = null,
+    teacherName = null,
+    roomText = null,
+    campusText = null,
+    color = null,
+)

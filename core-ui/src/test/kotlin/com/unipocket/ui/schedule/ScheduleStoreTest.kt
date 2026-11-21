@@ -1,11 +1,10 @@
 package com.unipocket.ui.schedule
 
-import com.unipocket.domain.Course
 import com.unipocket.domain.EditableScheduleSource
 import com.unipocket.domain.Period
 import com.unipocket.domain.ScheduleSource
-import com.unipocket.domain.SchoolConfig
 import com.unipocket.domain.Semester
+import com.unipocket.domain.Session
 import com.unipocket.domain.UniPocketException
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -16,44 +15,52 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
-import java.time.LocalTime
 
 class ScheduleStoreTest {
 
-    private val config = SchoolConfig(
-        schoolName = "测试大学",
-        periods = listOf(
-            Period(1, LocalTime.of(8, 0), LocalTime.of(8, 45)),
-            Period(2, LocalTime.of(8, 55), LocalTime.of(9, 40)),
-        ),
-        semester = Semester(
-            name = "测试学期",
-            startDate = LocalDate.of(2026, 8, 31), // 周一
-            weekCount = 20,
-        ),
+    private val semester = Semester(
+        id = 1,
+        nameZh = "测试学期",
+        schoolYear = "2026-2027",
+        startDate = LocalDate.of(2026, 8, 31), // 周一
+        endDate = null,
+        weekStartOnSunday = false,
+        weekIndices = (1..20).toList(),
+        isCurrent = true,
     )
 
     /** 第 2 周周二 */
     private val today = LocalDate.of(2026, 9, 8)
 
-    private fun course(id: String, weeks: Set<Int>, day: Int = 2) = Course(
+    private fun session(id: String, weekIndex: Int, weekday: Int = 2) = Session(
         id = id,
-        name = id,
-        weeks = weeks,
-        dayOfWeek = day,
-        periods = 1..2,
+        semesterId = 1,
+        source = "eas",
+        courseCode = id,
+        courseName = id,
+        weekIndex = weekIndex,
+        weekday = weekday,
+        startUnit = 1,
+        endUnit = 2,
+        date = null,
+        startTime = null,
+        endTime = null,
+        teacherName = null,
+        roomText = null,
+        campusText = null,
+        color = null,
     )
 
-    private fun source(vararg courses: Course) = object : ScheduleSource {
+    private fun source(vararg sessions: Session) = object : ScheduleSource {
         override val id = "test"
-        override suspend fun loadCourses(): List<Course> = courses.toList()
+        override suspend fun loadSessions(): List<Session> = sessions.toList()
     }
 
     @Test
     fun `首次加载后按当前周过滤`() = runTest {
         val store = ScheduleStore(
-            config = config,
-            source = source(course("a", setOf(2)), course("b", setOf(3))),
+            semester = semester,
+            source = source(session("a", 2), session("b", 3)),
             scope = this,
             clock = { today },
         )
@@ -63,7 +70,7 @@ class ScheduleStoreTest {
 
         val state = store.state.value
         assertEquals(2, state.week)
-        assertEquals(listOf("a"), state.courses.map { it.id })
+        assertEquals(listOf("a"), state.sessions.map { it.id })
         assertFalse(state.isLoading)
         assertNull(state.error)
         assertNotNull(state.lastUpdated)
@@ -73,17 +80,17 @@ class ScheduleStoreTest {
     fun `加载失败暴露统一错误类型`() = runTest {
         val failing = object : ScheduleSource {
             override val id = "test"
-            override suspend fun loadCourses(): List<Course> =
+            override suspend fun loadSessions(): List<Session> =
                 throw UniPocketException.Network("连不上教务")
         }
-        val store = ScheduleStore(config, failing, this, clock = { today })
+        val store = ScheduleStore(semester, failing, this, clock = { today })
 
         store.start()
         advanceUntilIdle()
 
         val state = store.state.value
         assertTrue(state.error is UniPocketException.Network)
-        assertTrue(state.courses.isEmpty())
+        assertTrue(state.sessions.isEmpty())
         assertFalse(state.isLoading)
     }
 
@@ -92,23 +99,23 @@ class ScheduleStoreTest {
         var shouldFail = false
         val flaky = object : ScheduleSource {
             override val id = "test"
-            override suspend fun loadCourses(): List<Course> {
+            override suspend fun loadSessions(): List<Session> {
                 if (shouldFail) throw UniPocketException.Network("刷新失败")
-                return listOf(course("a", setOf(2)))
+                return listOf(session("a", 2))
             }
         }
-        val store = ScheduleStore(config, flaky, this, clock = { today })
+        val store = ScheduleStore(semester, flaky, this, clock = { today })
 
         store.start()
         advanceUntilIdle()
-        assertEquals(listOf("a"), store.state.value.courses.map { it.id })
+        assertEquals(listOf("a"), store.state.value.sessions.map { it.id })
 
         shouldFail = true
         store.refresh()
         advanceUntilIdle()
 
         val state = store.state.value
-        assertEquals(listOf("a"), state.courses.map { it.id })
+        assertEquals(listOf("a"), state.sessions.map { it.id })
         assertTrue(state.error is UniPocketException.Network)
         assertFalse(state.isRefreshing)
     }
@@ -116,8 +123,8 @@ class ScheduleStoreTest {
     @Test
     fun `翻周在边界钳制并重新过滤`() = runTest {
         val store = ScheduleStore(
-            config = config,
-            source = source(course("a", setOf(1)), course("b", setOf(20))),
+            semester = semester,
+            source = source(session("a", 1), session("b", 20)),
             scope = this,
             clock = { today },
         )
@@ -130,12 +137,12 @@ class ScheduleStoreTest {
 
         store.setWeek(99)
         assertEquals(20, store.state.value.week)
-        assertEquals(listOf("b"), store.state.value.courses.map { it.id })
+        assertEquals(listOf("b"), store.state.value.sessions.map { it.id })
     }
 
     @Test
     fun `goToToday 回到当前周`() = runTest {
-        val store = ScheduleStore(config, source(), this, clock = { today })
+        val store = ScheduleStore(semester, source(), this, clock = { today })
 
         store.start()
         advanceUntilIdle()
@@ -152,9 +159,9 @@ class ScheduleStoreTest {
     fun `非框架异常也会归一成 Unknown`() = runTest {
         val broken = object : ScheduleSource {
             override val id = "test"
-            override suspend fun loadCourses(): List<Course> = throw IllegalStateException("解析炸了")
+            override suspend fun loadSessions(): List<Session> = throw IllegalStateException("解析炸了")
         }
-        val store = ScheduleStore(config, broken, this, clock = { today })
+        val store = ScheduleStore(semester, broken, this, clock = { today })
 
         store.start()
         advanceUntilIdle()
@@ -165,12 +172,12 @@ class ScheduleStoreTest {
     }
 
     private class EditableSource : EditableScheduleSource {
-        val stored = mutableListOf<Course>()
+        val stored = mutableListOf<Session>()
         override val id = "manual"
-        override suspend fun loadCourses(): List<Course> = stored.toList()
-        override suspend fun upsert(course: Course) {
-            stored.removeAll { it.id == course.id }
-            stored += course
+        override suspend fun loadSessions(): List<Session> = stored.toList()
+        override suspend fun upsert(session: Session) {
+            stored.removeAll { it.id == session.id }
+            stored += session
         }
         override suspend fun delete(id: String) {
             stored.removeAll { it.id == id }
@@ -180,40 +187,54 @@ class ScheduleStoreTest {
 
     @Test
     fun `补录后自动刷新并出现在当前周`() = runTest {
-        val store = ScheduleStore(config, EditableSource(), this, clock = { today })
+        val store = ScheduleStore(semester, EditableSource(), this, clock = { today })
         store.start()
         advanceUntilIdle()
-        assertTrue(store.state.value.courses.isEmpty())
+        assertTrue(store.state.value.sessions.isEmpty())
 
-        store.upsertCourse(course("m1", weeks = setOf(2)))
+        store.upsertSessions(listOf(session("m1", 2)))
         advanceUntilIdle()
 
-        assertEquals(listOf("m1"), store.state.value.courses.map { it.id })
+        assertEquals(listOf("m1"), store.state.value.sessions.map { it.id })
+    }
+
+    @Test
+    fun `补录多周会按周过滤显示`() = runTest {
+        val store = ScheduleStore(semester, EditableSource(), this, clock = { today })
+        store.start()
+        advanceUntilIdle()
+
+        store.upsertSessions(listOf(session("m1", 2), session("m1b", 3)))
+        advanceUntilIdle()
+
+        assertEquals(listOf("m1"), store.state.value.sessions.map { it.id })
+        store.setWeek(3)
+        assertEquals(listOf("m1b"), store.state.value.sessions.map { it.id })
     }
 
     @Test
     fun `删除后刷新移除`() = runTest {
-        val store = ScheduleStore(config, EditableSource(), this, clock = { today })
+        val store = ScheduleStore(semester, EditableSource(), this, clock = { today })
         store.start()
         advanceUntilIdle()
 
-        store.upsertCourse(course("m1", weeks = setOf(2)))
+        store.upsertSessions(listOf(session("m1", 2)))
         advanceUntilIdle()
-        store.deleteCourse("m1")
+        store.deleteSession("m1")
         advanceUntilIdle()
 
-        assertTrue(store.state.value.courses.isEmpty())
+        assertTrue(store.state.value.sessions.isEmpty())
     }
 
     @Test
     fun `数据源不支持编辑时编辑调用被忽略`() = runTest {
-        val store = ScheduleStore(config, source(course("a", setOf(2))), this, clock = { today })
+        val store = ScheduleStore(semester, source(session("a", 2)), this, clock = { today })
         store.start()
         advanceUntilIdle()
 
-        store.upsertCourse(course("x", weeks = setOf(2)))
+        store.upsertSessions(listOf(session("x", 2)))
         advanceUntilIdle()
 
-        assertEquals(listOf("a"), store.state.value.courses.map { it.id })
+        assertEquals(listOf("a"), store.state.value.sessions.map { it.id })
     }
 }

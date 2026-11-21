@@ -5,8 +5,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.unipocket.domain.Period
 import com.unipocket.domain.RoomSource
-import com.unipocket.domain.SchoolConfig
+import com.unipocket.domain.Semester
 import kotlinx.coroutines.flow.StateFlow
 import java.time.LocalDate
 
@@ -16,12 +17,13 @@ import java.time.LocalDate
  * 未实现 [RoomSource] 的接入方可以不使用本页面；使用了也只需提供一个实现。
  */
 class RoomViewModel(
-    config: SchoolConfig,
+    periods: List<Period>,
+    semester: Semester?,
     source: RoomSource,
     clock: () -> LocalDate = { LocalDate.now() },
 ) : ViewModel() {
 
-    private val store = RoomStore(config, source, viewModelScope, clock)
+    private val store = RoomStore(periods, semester, source, viewModelScope, clock)
 
     val state: StateFlow<RoomUiState> = store.state
 
@@ -41,11 +43,12 @@ class RoomViewModel(
 
     companion object {
         fun factory(
-            config: SchoolConfig,
+            periods: List<Period>,
+            semester: Semester?,
             source: RoomSource,
             clock: () -> LocalDate = { LocalDate.now() },
         ): ViewModelProvider.Factory = viewModelFactory {
-            initializer { RoomViewModel(config, source, clock) }
+            initializer { RoomViewModel(periods, semester, source, clock) }
         }
     }
 }

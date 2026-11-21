@@ -51,14 +51,18 @@ class WidgetPreviewActivity : ComponentActivity() {
                         factory = { context ->
                             FrameLayout(context).apply {
                                 setBackgroundColor(0xFFFFFFFF.toInt())
-                                val config = FakeData.config
+                                val semester = FakeData.semester
+                                val week = com.unipocket.domain.WeekAlignment.indexOf(
+                                    semester.startDate, semester.weekStartOnSunday, semester.weekIndices,
+                                    LocalDate.now(),
+                                ) ?: 1
                                 val options = loadWidgetOptions(context)
                                 val views = if (type == "today") {
                                     TodayWidgetRenderer.render(
                                         context = context,
-                                        config = config,
-                                        courses = FakeData.courses,
-                                        week = config.semester.currentWeek() ?: 1,
+                                        sessions = FakeData.sessions,
+                                        periods = FakeData.periods,
+                                        week = week,
                                         date = LocalDate.now(),
                                         now = LocalTime.now(),
                                         reportedWidthDp = widthDp.toFloat(),
@@ -69,9 +73,10 @@ class WidgetPreviewActivity : ComponentActivity() {
                                 } else {
                                     WeekWidgetRenderer.render(
                                         context = context,
-                                        config = config,
-                                        courses = FakeData.courses,
-                                        week = config.semester.currentWeek() ?: 1,
+                                        sessions = FakeData.sessions,
+                                        periods = FakeData.periods,
+                                        week = week,
+                                        weekMonday = com.unipocket.core.ScheduleText.mondayOf(semester.startDate, week),
                                         reportedWidthDp = widthDp.toFloat(),
                                         reportedHeightDp = reportedHeightDp.toFloat(),
                                         style = WidgetStyle(dark = dark),

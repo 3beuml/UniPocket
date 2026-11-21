@@ -5,9 +5,8 @@ import android.content.Context
 import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
-import com.unipocket.domain.Course
-import com.unipocket.domain.SchoolConfig
-import com.unipocket.domain.inWeek
+import com.unipocket.domain.Period
+import com.unipocket.domain.Session
 import java.time.LocalDate
 import kotlin.math.max
 import kotlin.math.min
@@ -43,11 +42,16 @@ object WeekWidgetRenderer {
 
     private val DAY_LABELS = listOf("一", "二", "三", "四", "五", "六", "日")
 
+    /**
+     * @param sessions 全学期上课记录（渲染器自己按 [week] 过滤）
+     * @param weekMonday 该教学周的周一；null = 列头不显示日期
+     */
     fun render(
         context: Context,
-        config: SchoolConfig,
-        courses: List<Course>,
+        sessions: List<Session>,
+        periods: List<Period>,
         week: Int,
+        weekMonday: LocalDate?,
         reportedWidthDp: Float,
         reportedHeightDp: Float,
         style: WidgetStyle = WidgetStyle(),
@@ -56,23 +60,23 @@ object WeekWidgetRenderer {
     ): RemoteViews {
         val pkg = context.packageName
         val density = context.resources.displayMetrics.density
-        val weekCourses = courses.inWeek(week)
-        val hasWeekend = weekCourses.any { it.dayOfWeek >= 6 }
+        val weekSessions = sessions.filter { it.weekIndex == week }
+        val hasWeekend = weekSessions.any { it.weekday >= 6 }
 
         // 账本要换行感知：先按单列宽估课名行数，再算行高
         val provisionalColumnWidth =
             ((reportedWidthDp - WeekLayoutPlanner.TIME_COLUMN_WIDTH_DP) / 7f).coerceAtLeast(1f)
         val nameLinesByRow = mutableMapOf<Int, Int>()
-        for (course in weekCourses) {
-            val lines = WidgetMetrics.estimateLines(course.name, provisionalColumnWidth, 9f)
-            nameLinesByRow[course.startPeriod] =
-                max(nameLinesByRow[course.startPeriod] ?: 1, lines)
+        for (session in weekSessions) {
+            val lines = WidgetMetrics.estimateLines(session.courseName, provisionalColumnWidth, 9f)
+            nameLinesByRow[session.startUnit] =
+                max(nameLinesByRow[session.startUnit] ?: 1, lines)
         }
 
         val plan = WeekLayoutPlanner.plan(
             reportedHeightDp = reportedHeightDp,
             widthDp = reportedWidthDp,
-            periodCount = config.periodCount,
+            periodCount = periods.size,
             nameLinesByRow = nameLinesByRow,
             hasWeekendStrip = hasWeekend,
         )
@@ -91,12 +95,11 @@ object WeekWidgetRenderer {
         root.addView(R.id.week_header, spacer(pkg, plan.timeColumnWidthDp, plan.headerHeightDp))
 
         val today = LocalDate.now()
-        val isCurrentWeek = config.semester.weekOf(today) == week
-
+        // 只要列头日期等于今天就高亮——weekMonday 不是本周的周一时自然不会相等
         for (day in 1..7) {
             val cell = RemoteViews(pkg, R.layout.unipocket_widget_header_cell)
-            val date = runCatching { config.semester.dateOf(week, day) }.getOrNull()
-            val isToday = isCurrentWeek && date == today
+            val date = weekMonday?.plusDays((day - 1).toLong())
+            val isToday = date == today
 
             cell.setTextViewText(R.id.header_main, if (isToday) "今" else DAY_LABELS[day - 1])
             cell.setTextColor(R.id.header_main, if (isToday) style.accentColor else text)
@@ -114,12 +117,12 @@ object WeekWidgetRenderer {
         val timeColumn = RemoteViews(pkg, R.layout.unipocket_widget_day_column)
         for (row in 1..plan.visibleRows) {
             val cell = RemoteViews(pkg, R.layout.unipocket_widget_time_cell)
-            val period = config.period(row)
+            val startText = periods.firstOrNull { it.indexNo == row }?.startText
             val label = buildString {
                 append(row)
-                if (period != null && options.showTime) {
+                if (startText != null && options.showTime) {
                     append('\n')
-                    append(period.startText)
+                    append(startText)
                 }
             }
             cell.setTextViewText(R.id.time_text, label)
@@ -134,16 +137,16 @@ object WeekWidgetRenderer {
         // ── 7 个日列 ──────────────────────────────────────────────────
         for (day in 1..7) {
             val column = RemoteViews(pkg, R.layout.unipocket_widget_day_column)
-            val byStart = weekCourses
-                .filter { it.dayOfWeek == day }
-                .sortedBy { it.startPeriod }
-                .groupBy { it.startPeriod }
+            val byStart = weekSessions
+                .filter { it.weekday == day }
+                .sortedBy { it.startUnit }
+                .groupBy { it.startUnit }
                 .mapValues { (_, list) -> list.first() }
 
             var row = 1
             while (row <= plan.visibleRows) {
-                val course = byStart[row]
-                if (course == null) {
+                val session = byStart[row]
+                if (session == null) {
                     val empty = spacer(pkg, plan.columnWidthDp, plan.rowHeightsDp[row - 1])
                     column.addView(R.id.day_root, empty)
                     row++
@@ -151,11 +154,11 @@ object WeekWidgetRenderer {
                 }
 
                 // 跨节次：课程块高度 = 覆盖到的可见行高度之和
-                val spanEnd = min(course.endPeriod, plan.visibleRows)
+                val spanEnd = min(session.endUnit, plan.visibleRows)
                 val blockHeight = plan.rowHeightsDp.subList(row - 1, spanEnd).sum()
                 column.addView(
                     R.id.day_root,
-                    courseCell(pkg, density, course, plan.columnWidthDp, blockHeight, style, options),
+                    courseCell(pkg, density, session, plan.columnWidthDp, blockHeight, style, options),
                 )
                 row = spanEnd + 1
             }
@@ -165,12 +168,12 @@ object WeekWidgetRenderer {
         }
 
         // ── 周末明细条 ────────────────────────────────────────────────
-        val weekendCourses = weekCourses.filter { it.dayOfWeek >= 6 }
-        if (weekendCourses.isNotEmpty()) {
+        val weekendSessions = weekSessions.filter { it.weekday >= 6 }
+        if (weekendSessions.isNotEmpty()) {
             root.setViewVisibility(R.id.week_strip, View.VISIBLE)
             root.setTextViewText(
                 R.id.week_strip,
-                weekendStripText(config, week, weekendCourses, options),
+                weekendStripText(weekMonday, periods, weekendSessions, options),
             )
             root.setTextColor(R.id.week_strip, sub)
         } else {
@@ -190,14 +193,17 @@ object WeekWidgetRenderer {
     private fun courseCell(
         pkg: String,
         density: Float,
-        course: Course,
+        session: Session,
         widthDp: Float,
         heightDp: Float,
         style: WidgetStyle,
         options: WidgetOptions,
     ): RemoteViews {
         val cell = RemoteViews(pkg, R.layout.unipocket_widget_course_cell)
-        val blockColor = style.blockPalette[Math.floorMod(course.colorSeed, style.blockPalette.size)]
+        // 按课程代码取色：同一门课所有周同色
+        val blockColor = style.blockPalette[
+            Math.floorMod(session.courseCode.hashCode(), style.blockPalette.size),
+        ]
         cell.setInt(R.id.course_root, "setBackgroundColor", blockColor)
         cell.setViewPadding(
             R.id.course_root,
@@ -207,10 +213,10 @@ object WeekWidgetRenderer {
             (2 * density).toInt(),
         )
 
-        cell.setTextViewText(R.id.course_name, course.name)
+        cell.setTextViewText(R.id.course_name, session.courseName)
         cell.setTextColor(R.id.course_name, BLOCK_TEXT)
 
-        val room = course.room
+        val room = session.roomText
         if (room.isNullOrBlank() || !options.showRoom) {
             cell.setViewVisibility(R.id.course_room, View.GONE)
         } else {
@@ -225,23 +231,23 @@ object WeekWidgetRenderer {
 
     /** 「六 11.7 数据结构 教1-101 10:10-11:50」，最多两条 */
     private fun weekendStripText(
-        config: SchoolConfig,
-        week: Int,
-        weekendCourses: List<Course>,
+        weekMonday: LocalDate?,
+        periods: List<Period>,
+        weekendSessions: List<Session>,
         options: WidgetOptions,
-    ): String = weekendCourses
-        .sortedWith(compareBy({ it.dayOfWeek }, { it.startPeriod }))
+    ): String = weekendSessions
+        .sortedWith(compareBy({ it.weekday }, { it.startUnit }))
         .take(2)
-        .joinToString("   ") { course ->
-            val date = runCatching { config.semester.dateOf(week, course.dayOfWeek) }.getOrNull()
-            val start = config.period(course.startPeriod)?.startText.orEmpty()
-            val end = config.period(course.endPeriod)?.endText.orEmpty()
+        .joinToString("   ") { session ->
+            val date = weekMonday?.plusDays((session.weekday - 1).toLong())
+            val start = periods.firstOrNull { it.indexNo == session.startUnit }?.startText
+            val end = periods.firstOrNull { it.indexNo == session.endUnit }?.endText
             listOfNotNull(
-                DAY_LABELS.getOrNull(course.dayOfWeek - 1),
+                DAY_LABELS.getOrNull(session.weekday - 1),
                 date?.let { "${it.monthValue}.${it.dayOfMonth}" },
-                course.name,
-                course.room?.takeIf { options.showRoom },
-                if (options.showTime && start.isNotEmpty() && end.isNotEmpty()) "$start-$end" else null,
+                session.courseName,
+                session.roomText?.takeIf { options.showRoom },
+                if (options.showTime && start != null && end != null) "$start-$end" else null,
             ).filter { it.isNotBlank() }.joinToString(" ")
         }
 }

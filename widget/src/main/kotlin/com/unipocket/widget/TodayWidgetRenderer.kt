@@ -5,10 +5,9 @@ import android.content.Context
 import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
-import com.unipocket.domain.Course
-import com.unipocket.domain.SchoolConfig
+import com.unipocket.domain.Period
+import com.unipocket.domain.Session
 import com.unipocket.domain.TodayStatus
-import com.unipocket.domain.inWeek
 import com.unipocket.domain.todayItems
 import java.time.LocalDate
 import java.time.LocalTime
@@ -30,8 +29,8 @@ object TodayWidgetRenderer {
 
     fun render(
         context: Context,
-        config: SchoolConfig,
-        courses: List<Course>,
+        sessions: List<Session>,
+        periods: List<Period>,
         week: Int,
         date: LocalDate,
         now: LocalTime,
@@ -43,10 +42,12 @@ object TodayWidgetRenderer {
     ): RemoteViews {
         val pkg = context.packageName
         // 先按周过滤，再取当天——否则其它教学周的课会漏进来
-        val items = courses.inWeek(week).todayItems(config, date.dayOfWeek.value, now)
+        val items = sessions
+            .filter { it.weekIndex == week }
+            .todayItems(periods, date.dayOfWeek.value, now)
         val nameWidth = (reportedWidthDp - TIME_COLUMN_DP - HORIZONTAL_CHROME_DP).coerceAtLeast(40f)
         val lineCounts = items.map {
-            WidgetMetrics.estimateLines(it.course.name, nameWidth, 10f)
+            WidgetMetrics.estimateLines(it.session.courseName, nameWidth, 10f)
         }
         val plan = TodayLayoutPlanner.plan(reportedHeightDp, lineCounts)
 
@@ -87,8 +88,9 @@ object TodayWidgetRenderer {
                 TodayStatus.UPCOMING -> text
                 TodayStatus.FINISHED -> sub
             }
+            // 按课程代码取色：同一门课所有周同色
             val blockColor = style.blockPalette[
-                Math.floorMod(item.course.colorSeed, style.blockPalette.size)
+                Math.floorMod(item.session.courseCode.hashCode(), style.blockPalette.size),
             ]
 
             row.setViewLayoutWidth(R.id.today_row_root, reportedWidthDp, TypedValue.COMPLEX_UNIT_DIP)
@@ -109,11 +111,11 @@ object TodayWidgetRenderer {
                 nameWidth,
                 TypedValue.COMPLEX_UNIT_DIP,
             )
-            row.setTextViewText(R.id.today_row_name, item.course.name)
+            row.setTextViewText(R.id.today_row_name, item.session.courseName)
             row.setTextColor(R.id.today_row_name, nameColor)
 
             val detail = listOfNotNull(
-                item.course.room?.takeIf { it.isNotBlank() && options.showRoom },
+                item.session.roomText?.takeIf { it.isNotBlank() && options.showRoom },
                 item.statusLabel,
             ).joinToString(" · ")
             if (detail.isBlank()) {

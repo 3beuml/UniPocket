@@ -31,7 +31,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.unipocket.domain.Period
-import com.unipocket.domain.SchoolConfig
 import com.unipocket.ui.common.UniPocketErrorBanner
 import com.unipocket.ui.nav.DOCK_CLEARANCE
 
@@ -40,7 +39,7 @@ private val BUSY_BG = Color(0xFFFFCDD2)
 
 @Composable
 fun RoomScreen(
-    config: SchoolConfig,
+    periods: List<Period>,
     state: RoomUiState,
     modifier: Modifier = Modifier,
     onDaySelected: (Int) -> Unit = {},
@@ -77,14 +76,14 @@ fun RoomScreen(
                 state.allRooms.isEmpty() && !state.isLoading -> Text(
                     text = "没有教室数据", modifier = Modifier.align(Alignment.Center),
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                else -> OccupancyGrid(config, state)
+                else -> OccupancyGrid(periods, state)
             }
         }
     }
 }
 
 @Composable
-private fun OccupancyGrid(config: SchoolConfig, state: RoomUiState) {
+private fun OccupancyGrid(periods: List<Period>, state: RoomUiState) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 8.dp, end = 8.dp, bottom = DOCK_CLEARANCE),
@@ -95,9 +94,9 @@ private fun OccupancyGrid(config: SchoolConfig, state: RoomUiState) {
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
                     style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             }
-            item(key = "p-${group.building?.id ?: "o"}") { PeriodHeaders(config) }
+            item(key = "p-${group.building?.id ?: "o"}") { PeriodHeaders(periods) }
             items(group.rooms, key = { it.id }) { room ->
-                OccupancyRow(room, state.freeMatrix[room.id] ?: emptySet(), config)
+                OccupancyRow(room, state.freeMatrix[room.id] ?: emptySet(), periods)
             }
             item(key = "d-${group.building?.id ?: "o"}") {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
@@ -108,12 +107,12 @@ private fun OccupancyGrid(config: SchoolConfig, state: RoomUiState) {
 }
 
 @Composable
-private fun PeriodHeaders(config: SchoolConfig) {
+private fun PeriodHeaders(periods: List<Period>) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
         androidx.compose.foundation.layout.Spacer(Modifier.width(56.dp))
-        config.periods.forEach { p ->
+        periods.forEach { p ->
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("${p.index}", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("${p.indexNo}", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(p.startText, fontSize = 7.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
             }
         }
@@ -122,15 +121,15 @@ private fun PeriodHeaders(config: SchoolConfig) {
 }
 
 @Composable
-private fun OccupancyRow(room: com.unipocket.domain.LocationNode, freePeriods: Set<Int>, config: SchoolConfig) {
+private fun OccupancyRow(room: com.unipocket.domain.LocationNode, freePeriods: Set<Int>, periods: List<Period>) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp)
         .clip(RoundedCornerShape(4.dp))
         .background(MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.5f))
         .padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(room.name, Modifier.width(56.dp).padding(start = 4.dp), fontSize = 11.sp, maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-        config.periods.forEach { p ->
-            val free = p.index in freePeriods
+        periods.forEach { p ->
+            val free = p.indexNo in freePeriods
             Box(Modifier.weight(1f).padding(horizontal = 1.dp), contentAlignment = Alignment.Center) {
                 Box(Modifier.fillMaxWidth().height(20.dp).clip(RoundedCornerShape(3.dp))
                     .background(if (free) FREE_BG else BUSY_BG), contentAlignment = Alignment.Center) {

@@ -27,7 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.unipocket.domain.Course
+import com.unipocket.domain.Session
 import com.unipocket.domain.TodayItem
 import com.unipocket.domain.TodayStatus
 import com.unipocket.domain.nextUpcoming
@@ -47,7 +47,7 @@ fun TodayScreen(
     now: LocalTime,
     modifier: Modifier = Modifier,
     isLoading: Boolean = false,
-    onCourseClick: (Course) -> Unit = {},
+    onCourseClick: (Session) -> Unit = {},
 ) {
     Column(modifier) {
         Row(
@@ -73,7 +73,7 @@ fun TodayScreen(
             NextCourseCard(
                 item = next,
                 now = now,
-                onClick = { onCourseClick(next.course) },
+                onClick = { onCourseClick(next.session) },
             )
         }
 
@@ -101,8 +101,8 @@ fun TodayScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    items(items, key = { it.course.id }) { item ->
-                        TodayRow(item = item, onClick = { onCourseClick(item.course) })
+                    items(items, key = { it.session.id }) { item ->
+                        TodayRow(item = item, onClick = { onCourseClick(item.session) })
                     }
                 }
             }
@@ -157,12 +157,12 @@ private fun TodayRow(item: TodayItem, onClick: () -> Unit) {
                 .padding(start = 12.dp),
         ) {
             Text(
-                text = item.course.name,
+                text = item.session.courseName,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = if (item.status == TodayStatus.ONGOING) FontWeight.SemiBold else FontWeight.Normal,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha),
             )
-            val detail = listOfNotNull(item.course.room, item.course.teacher)
+            val detail = listOfNotNull(item.session.roomText, item.session.teacherName)
                 .filter { it.isNotBlank() }
                 .joinToString(" · ")
             if (detail.isNotEmpty()) {
@@ -210,14 +210,14 @@ private fun NextCourseCard(
                 color = MaterialTheme.colorScheme.primary,
             )
             Text(
-                text = item.course.name,
+                text = item.session.courseName,
                 modifier = Modifier.padding(top = 2.dp),
                 style = MaterialTheme.typography.titleMedium,
             )
             val detail = listOfNotNull(
                 item.timeText,
-                item.course.room?.takeIf { it.isNotBlank() },
-                item.course.teacher?.takeIf { it.isNotBlank() },
+                item.session.roomText?.takeIf { it.isNotBlank() },
+                item.session.teacherName?.takeIf { it.isNotBlank() },
             ).joinToString(" · ")
             if (detail.isNotBlank()) {
                 Text(

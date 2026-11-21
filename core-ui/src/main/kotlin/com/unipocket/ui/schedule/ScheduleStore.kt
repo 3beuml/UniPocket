@@ -1,11 +1,11 @@
 package com.unipocket.ui.schedule
 
-import com.unipocket.domain.Course
 import com.unipocket.domain.EditableScheduleSource
 import com.unipocket.domain.ScheduleSource
-import com.unipocket.domain.SchoolConfig
+import com.unipocket.domain.Semester
+import com.unipocket.domain.Session
 import com.unipocket.domain.UniPocketException
-import com.unipocket.domain.inWeek
+import com.unipocket.domain.WeekAlignment
 import com.unipocket.domain.toUniPocketException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -26,9 +26,12 @@ import java.time.LocalDate
  * - [refresh] 强制重拉；失败时**保留已有数据**，只设置 [ScheduleUiState.error]。
  * - 同一时刻只允许一个加载任务，重复调用会被忽略。
  * - 所有底层异常都会归一成 [UniPocketException]。
+ *
+ * 周次语义：今天的周次由 [WeekAlignment] 从 [Semester.startDate] 推算，
+ * 推不出（开学前/寒暑假/没给起始日）落到学期第一周。
  */
 class ScheduleStore(
-    private val config: SchoolConfig,
+    private val semester: Semester,
     private val source: ScheduleSource,
     private val scope: CoroutineScope,
     /** 注入时钟，便于测试"今天在第几周" */
@@ -40,27 +43,36 @@ class ScheduleStore(
     private val editableSource: EditableScheduleSource? = null,
 ) {
 
+    /**
+     * 周次显示的合法区间（学期第 1 周..最后一周）。
+     * ⚠️ 必须声明在 [_state] 之前：[_state] 的初值走 [initialWeek]，会读这两个值——
+     * Kotlin 属性按声明顺序初始化，放在后面读到的是未初始化的 0。
+     */
+    private val firstWeek: Int = semester.firstWeek ?: 1
+    private val lastWeek: Int = semester.lastWeek ?: semester.weekCount
+
     private val _state = MutableStateFlow(
         ScheduleUiState(
             week = initialWeek(),
-            weekCount = config.semester.weekCount,
+            weekCount = semester.weekCount,
             isCurrentWeek = true,
         ),
     )
     val state: StateFlow<ScheduleUiState> = _state.asStateFlow()
 
     /** 全学期课程缓存；null 表示还没成功加载过 */
-    private var allCourses: List<Course>? = null
+    private var allSessions: List<Session>? = null
     private var loadJob: Job? = null
 
-    private fun todayWeek(): Int? = config.semester.weekOf(clock())
+    private fun todayWeek(): Int? =
+        WeekAlignment.indexOf(semester.startDate, semester.weekStartOnSunday, semester.weekIndices, clock())
 
     private fun initialWeek(): Int =
-        todayWeek()?.coerceIn(1, config.semester.weekCount) ?: 1
+        WeekAlignment.currentWeek(todayWeek(), semester.firstWeek).coerceIn(firstWeek, lastWeek)
 
     /** 首次进入页面时调用；已有缓存则什么都不做 */
     fun start() {
-        if (allCourses == null) load(force = false)
+        if (allSessions == null) load(force = false)
     }
 
     /** 强制重新拉取（下拉刷新 / 重试） */
@@ -70,15 +82,15 @@ class ScheduleStore(
     fun retry() = refresh()
 
     fun setWeek(week: Int) {
-        val target = week.coerceIn(1, config.semester.weekCount)
+        val target = week.coerceIn(firstWeek, lastWeek)
         _state.update {
             it.copy(
                 week = target,
                 isCurrentWeek = target == todayWeek(),
-                courses = allCourses?.inWeek(target).orEmpty(),
+                sessions = allSessions?.filter { s -> s.weekIndex == target }.orEmpty(),
             )
         }
-        if (allCourses == null) load(force = false)
+        if (allSessions == null) load(force = false)
     }
 
     fun nextWeek() = setWeek(_state.value.week + 1)
@@ -88,13 +100,14 @@ class ScheduleStore(
     fun goToToday() = setWeek(initialWeek())
 
     /**
-     * 手动补录/编辑。仅在数据源实现 [EditableScheduleSource] 时生效；
+     * 手动补录/编辑。一门课覆盖 N 周 → 传 N 条 [Session]（同 [Session.courseCode]、
+     * 各自的 [Session.weekIndex]）。仅在数据源实现 [EditableScheduleSource] 时生效；
      * 写入成功后强制刷新，失败时把错误放进 [ScheduleUiState.error]（不清空已有课表）。
      */
-    fun upsertCourse(course: Course) = edit { it.upsert(course) }
+    fun upsertSessions(sessions: List<Session>) = edit { source -> sessions.forEach { source.upsert(it) } }
 
-    /** 删除一节课；语义同 [upsertCourse] */
-    fun deleteCourse(id: String) = edit { it.delete(id) }
+    /** 删除一条上课记录；语义同 [upsertSessions] */
+    fun deleteSession(id: String) = edit { it.delete(id) }
 
     private fun edit(block: suspend (EditableScheduleSource) -> Unit) {
         val editable = editableSource ?: (source as? EditableScheduleSource) ?: return
@@ -112,9 +125,9 @@ class ScheduleStore(
 
     private fun load(force: Boolean) {
         if (loadJob?.isActive == true) return
-        if (!force && allCourses != null) return
+        if (!force && allSessions != null) return
 
-        val hasCache = allCourses != null
+        val hasCache = allSessions != null
         _state.update {
             it.copy(
                 isLoading = !hasCache,
@@ -125,12 +138,12 @@ class ScheduleStore(
 
         loadJob = scope.launch {
             try {
-                val courses = source.loadCourses()
-                allCourses = courses
+                val sessions = source.loadSessions()
+                allSessions = sessions
                 val now = Instant.now()
                 _state.update {
                     it.copy(
-                        courses = courses.inWeek(it.week),
+                        sessions = sessions.filter { s -> s.weekIndex == it.week },
                         isLoading = false,
                         isRefreshing = false,
                         error = null,

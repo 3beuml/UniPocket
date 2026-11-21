@@ -1,6 +1,6 @@
 package com.unipocket.widget
 
-/** 小组件的显示选项，由偏好（[com.unipocket.domain.SchedulePrefs]）驱动 */
+/** 小组件的显示选项，由偏好（[com.unipocket.domain.prefs.UiPrefs]）驱动 */
 data class WidgetOptions(
     /** 是否显示教室 */
     val showRoom: Boolean = true,

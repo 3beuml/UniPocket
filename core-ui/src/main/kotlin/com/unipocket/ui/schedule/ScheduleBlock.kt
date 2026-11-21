@@ -1,57 +1,65 @@
 package com.unipocket.ui.schedule
 
-import com.unipocket.domain.Course
+import com.unipocket.domain.Session
 import java.security.MessageDigest
 
 /**
- * 渲染用的单周时段。由 [Course] 按教学周展开而来，
- * 让切段算法不需要理解 `weeks: Set<Int>` 的多周语义。
+ * 渲染用的单周时段。由 [Session] 过滤目标周而来——
+ * 新模型一条 Session 本来就只对应一个教学周，不再需要多周展开。
  */
 data class ScheduleSlot(
     val id: String,
     val name: String,
     val room: String?,
     val teacher: String?,
-    val colorSeed: Int,
+    /** 稳定的课程身份（配色用，同一门课所有周同色） */
+    val courseCode: String,
     val week: Int,
     val dayOfWeek: Int,
     val startPeriod: Int,
     val endPeriod: Int,
-    /** ZZUPocket 口径的稳定 key，用于冲突选择记忆 */
+    /** 教务给的真实日期（ISO，调休课靠它）；null = 常规排课 */
+    val date: String?,
+    /** 节次表查不到时的兜底时刻文本（"08:00"）；null = 没有兜底 */
+    val startTime: String?,
+    val endTime: String?,
+    /** 稳定 key，用于冲突选择记忆 */
     val conflictKey: String,
 )
 
 /**
- * 把多周 `Course` 展开成指定周的 [ScheduleSlot] 列表。
+ * 挑出目标教学周的 [ScheduleSlot] 列表。
  *
- * 一条 Course 覆盖 N 周 → 产出 0 或 1 条 Slot（该周有课就 1 条）。
- * id 里拼周次，保证不同周的同节课不会互相混淆。
+ * `Session.weekIndex` 是单值（每周一条记录），所以"展开"退化成一次过滤。
  */
-fun List<Course>.expandByWeek(week: Int): List<ScheduleSlot> =
-    filter { week in it.weeks }
-        .map { course ->
+fun List<Session>.expandByWeek(week: Int): List<ScheduleSlot> =
+    filter { it.weekIndex == week }
+        .map { session ->
             ScheduleSlot(
-                id = "${course.id}#$week",
-                name = course.name,
-                room = course.room,
-                teacher = course.teacher,
-                colorSeed = course.colorSeed,
+                id = session.id,
+                name = session.courseName,
+                room = session.roomText,
+                teacher = session.teacherName,
+                courseCode = session.courseCode,
                 week = week,
-                dayOfWeek = course.dayOfWeek,
-                startPeriod = course.startPeriod,
-                endPeriod = course.endPeriod,
-                conflictKey = conflictDisplayKey(course, week),
+                dayOfWeek = session.weekday,
+                startPeriod = session.startUnit,
+                endPeriod = session.endUnit,
+                date = session.date,
+                startTime = session.startTime,
+                endTime = session.endTime,
+                conflictKey = conflictDisplayKey(session),
             )
         }
 
 /** 冲突选择的稳定 key：同一门课不同时段/不同来源允许按周做不同选择 */
-fun conflictDisplayKey(course: Course, week: Int): String = stableKey(
+fun conflictDisplayKey(session: Session): String = stableKey(
     listOf(
-        course.id,
-        course.dayOfWeek.toString(),
-        course.startPeriod.toString(),
-        course.endPeriod.toString(),
-        week.toString(),
+        session.id,
+        session.weekday.toString(),
+        session.startUnit.toString(),
+        session.endUnit.toString(),
+        session.weekIndex.toString(),
     ),
 )
 

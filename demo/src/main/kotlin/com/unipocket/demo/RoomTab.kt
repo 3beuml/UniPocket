@@ -16,15 +16,16 @@ import com.unipocket.feature.room.RoomViewModel
  */
 @Composable
 fun RoomTab(modifier: Modifier = Modifier) {
-    val config = FakeData.config
+    val periods = FakeData.periods
+    val semester = FakeData.semester
     val source = remember { FakeRoomSource() }
     val viewModel: RoomViewModel = viewModel(
-        factory = RoomViewModel.factory(config, source),
+        factory = RoomViewModel.factory(periods, semester, source),
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     RoomScreen(
-        config = config,
+        periods = periods,
         state = state,
         modifier = modifier.fillMaxSize(),
         onDaySelected = viewModel::setDayOfWeek,

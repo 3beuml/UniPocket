@@ -47,9 +47,13 @@ class WeekWidgetProvider : AppWidgetProvider() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
             try {
-                val config = FakeData.config
-                val courses = FakeScheduleSource(delayMillis = 0).loadCourses()
-                val week = config.semester.currentWeek() ?: 1
+                val semester = FakeData.semester
+                val sessions = FakeScheduleSource(delayMillis = 0).loadSessions()
+                val week = com.unipocket.domain.WeekAlignment.indexOf(
+                    semester.startDate, semester.weekStartOnSunday, semester.weekIndices,
+                    java.time.LocalDate.now(),
+                ) ?: 1
+                val weekMonday = com.unipocket.core.ScheduleText.mondayOf(semester.startDate, week)
 
                 val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
                 val widthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
@@ -69,9 +73,10 @@ class WeekWidgetProvider : AppWidgetProvider() {
 
                 val views = WeekWidgetRenderer.render(
                     context = context,
-                    config = config,
-                    courses = courses,
+                    sessions = sessions,
+                    periods = FakeData.periods,
                     week = week,
+                    weekMonday = weekMonday,
                     reportedWidthDp = widthDp,
                     reportedHeightDp = heightDp,
                     style = WidgetStyle(dark = dark),
