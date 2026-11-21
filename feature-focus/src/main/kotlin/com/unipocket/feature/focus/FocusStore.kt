@@ -3,8 +3,11 @@ package com.unipocket.feature.focus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -80,13 +83,21 @@ class FocusStore(
     )
     val state: StateFlow<FocusState> = _state.asStateFlow()
 
+    /** 阶段完成事件（目前只有专注完成）；缓冲 8 个足够，消费方是统计落库 */
+    private val _events = MutableSharedFlow<FocusEvent>(extraBufferCapacity = 8)
+    val events: SharedFlow<FocusEvent> = _events.asSharedFlow()
+
     /** 当前阶段结束的绝对时刻；暂停/停止时为 null */
     private var deadline: Long? = null
+    /** 当前阶段开始时刻，用于专注完成时记录归属 */
+    private var phaseStartedAt: Long? = null
     private var ticker: Job? = null
 
     fun start() {
         if (_state.value.isRunning) return
-        deadline = clock() + _state.value.remainingMillis
+        val now = clock()
+        deadline = now + _state.value.remainingMillis
+        if (_state.value.phase == FocusPhase.WORK) phaseStartedAt = now
         _state.update { it.copy(isRunning = true) }
         ensureTicker()
     }
@@ -141,6 +152,12 @@ class FocusStore(
                 } else {
                     FocusPhase.SHORT_BREAK
                 }
+                _events.tryEmit(
+                    FocusEvent.WorkCompleted(
+                        startedAtMillis = phaseStartedAt ?: (clock() - config.workMillis),
+                        durationMillis = config.workMillis,
+                    ),
+                )
                 enterPhase(next, completed, autoStart = true)
             }
 
@@ -152,6 +169,7 @@ class FocusStore(
     private fun enterPhase(phase: FocusPhase, completed: Int, autoStart: Boolean) {
         val duration = durationOf(phase)
         deadline = if (autoStart) clock() + duration else null
+        phaseStartedAt = if (autoStart) clock() else null
         _state.update {
             it.copy(
                 phase = phase,

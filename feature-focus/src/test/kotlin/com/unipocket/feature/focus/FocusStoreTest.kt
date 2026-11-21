@@ -3,6 +3,7 @@ package com.unipocket.feature.focus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -106,6 +107,23 @@ class FocusStoreTest {
         assertEquals(FocusPhase.LONG_BREAK, state.phase)
         assertEquals(2, state.completedWorkSessions)
         assertEquals(120_000, state.remainingMillis)
+    }
+
+    @Test
+    fun `专注完成发出 WorkCompleted 事件`() = runTest {
+        val store = newStore()
+        val events = mutableListOf<FocusEvent>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            store.events.collect { events += it }
+        }
+
+        store.start()
+        advance(60_000)
+
+        assertEquals(1, events.size)
+        val event = events.single() as FocusEvent.WorkCompleted
+        assertEquals(60_000L, event.durationMillis)
+        assertEquals(0L, event.startedAtMillis)
     }
 
     @Test
