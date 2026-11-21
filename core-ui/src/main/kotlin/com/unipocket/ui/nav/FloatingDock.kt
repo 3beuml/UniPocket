@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -133,7 +134,9 @@ fun UniPocketNavHost(
                 contentColor = MaterialTheme.colorScheme.onSurface,
             ) { _ ->
                 val selected = destinations.firstOrNull { it.id == selectedTabId } ?: destinations.first()
-                content(selected)
+                Box(Modifier.fillMaxSize().statusBarsPadding()) {
+                    content(selected)
+                }
             }
 
             // ── 悬浮胶囊 dock：覆盖层 ──────────────────────────────────────
