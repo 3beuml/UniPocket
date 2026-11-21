@@ -1,6 +1,7 @@
 package com.unipocket.ui.schedule
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -162,6 +163,7 @@ private fun RowScope.DayColumn(
         for (course in courses) {
             val lane = lanes[course.id] ?: LaneInfo(lane = 0, lanes = 1)
             val laneWidth = maxWidth / lane.lanes
+            val conflicted = lane.lanes > 1
             Box(
                 modifier = Modifier
                     .offset(x = laneWidth * lane.lane, y = SlotHeight * (course.startPeriod - 1))
@@ -170,6 +172,12 @@ private fun RowScope.DayColumn(
                     .padding(1.dp)
                     .clip(RoundedCornerShape(4.dp))
                     .background(blockColor(course.colorSeed))
+                    // 冲突警示：同一时段被多门课占用时描一圈警示色
+                    .border(
+                        width = if (conflicted) 2.dp else 0.dp,
+                        color = if (conflicted) MaterialTheme.colorScheme.error else Color.Transparent,
+                        shape = RoundedCornerShape(4.dp),
+                    )
                     .clickable { onCourseClick(course) }
                     .padding(horizontal = 3.dp, vertical = 2.dp),
             ) {

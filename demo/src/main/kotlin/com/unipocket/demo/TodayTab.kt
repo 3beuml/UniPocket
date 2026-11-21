@@ -46,6 +46,7 @@ fun TodayTab(modifier: Modifier = Modifier) {
     TodayScreen(
         date = today,
         items = items,
+        now = now,
         modifier = modifier,
         isLoading = state.isLoading,
     )
