@@ -77,6 +77,7 @@ data class ScheduleBlock(
     val week: Int get() = slots.first().week
     val dayOfWeek: Int get() = slots.first().dayOfWeek
     val isConflict: Boolean get() = slots.size > 1
+    val showPlaceholder: Boolean get() = isConflict && selectedSlotId == null
     val displaySlot: ScheduleSlot get() = slots.firstOrNull { it.id == selectedSlotId } ?: slots.first()
 
     /** 不含课名/教室等显示文本；改名/同步不影响选择记忆 */
