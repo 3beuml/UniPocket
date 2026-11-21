@@ -104,48 +104,47 @@ class RoomStoreTest {
     }
 
     @Test
-    fun `切换节次会带上新的节次重新查询`() = runTest {
+    fun `setPeriod 更新筛选节次（矩阵已包含全节次数据无需重查）`() = runTest {
         val source = FakeSource(tree)
         val store = RoomStore(config, source, this) { today }
 
         store.start()
         advanceUntilIdle()
+        val queriesAfterLoad = source.queries.size
 
         store.setPeriod(3)
-        advanceUntilIdle()
 
-        assertEquals(3..3, source.queries.last().third)
         assertEquals(3, store.state.value.periodIndex)
+        assertEquals(queriesAfterLoad, source.queries.size)
     }
 
     @Test
-    fun `查询失败保留旧结果并暴露错误`() = runTest {
-        val source = FakeSource(tree)
+    fun `查询失败暴露错误`() = runTest {
+        val source = FakeSource(tree).apply { fail = true }
         val store = RoomStore(config, source, this) { today }
 
         store.start()
-        advanceUntilIdle()
-        assertEquals(2, store.state.value.groups.size)
-
-        source.fail = true
-        store.setPeriod(2)
         advanceUntilIdle()
 
         val state = store.state.value
-        assertEquals(2, state.groups.size)
         assertTrue(state.error is UniPocketException.Network)
-        assertFalse(state.isRefreshing)
+        assertFalse(state.isLoading)
     }
 
     @Test
-    fun `没有空闲教室时 isEmpty 为真`() = runTest {
-        val source = FakeSource(tree).apply { rooms = emptyList() }
+    fun `占用矩阵包含所有节次的空闲信息`() = runTest {
+        val source = FakeSource(tree).apply { rooms = tree.flatten().filter { it.isLeaf }.toList() }
         val store = RoomStore(config, source, this) { today }
 
         store.start()
         advanceUntilIdle()
 
-        assertTrue(store.state.value.isEmpty)
+        // 所有教室都在矩阵里
+        assertEquals(3, store.state.value.freeMatrix.size)
+        // 每间教室的空闲节次都在 1..4 范围内
+        store.state.value.freeMatrix.values.forEach { periods ->
+            assertTrue(periods.all { it in 1..4 })
+        }
     }
 
     @Test
