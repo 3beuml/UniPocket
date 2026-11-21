@@ -2,10 +2,10 @@
 
 [![CI](https://github.com/3beuml/UniPocket/actions/workflows/ci.yml/badge.svg)](https://github.com/3beuml/UniPocket/actions/workflows/ci.yml)
 
-校园课程表 UI 框架：fork 下来，换掉数据源，就是你学校的课表 App。
-课表网格、今天页、空教室、番茄钟、桌面小组件都是现成的，你要写的只有本校教务的接入层。
+校园课程表 UI 框架：fork 之后换掉数据源，就是一个学校的课表 App。
+课表网格、今天页、空教室、番茄钟、桌面小组件都是现成的，要写的只有本校教务接入层。
 
-> v0.1 还没发版，API 和目录结构都可能变。自己玩没问题，先别上生产。
+> v0.1 还没发版，API 和目录结构都可能变，暂不建议用于生产。
 
 ## 先跑起来
 
@@ -34,9 +34,9 @@ demo 用的是假数据（`demo/src/main/kotlin/com/unipocket/demo/FakeData.kt`�
 
 1. fork 后跑改名脚本：
    ```bash
-   ./tools/rename.sh --package com.yourschool.pocket --app-name "你的课程表"
+   ./tools/rename.sh --package com.yourschool.pocket --app-name "××大学课程表"
    ```
-2. 在 `FakeData.kt` 里填你们学校的节次表和学期。
+2. 在 `FakeData.kt` 里填本校的节次表和学期。
 3. 实现 `ScheduleSource`：把教务的课表变成 `Session`（每周一条），失败时抛框架的统一错误类型。
 4. 有空教室需求再实现 `RoomSource`。
 
@@ -46,7 +46,7 @@ demo 用的是假数据（`demo/src/main/kotlin/com/unipocket/demo/FakeData.kt`�
 
 - 不做多学校切换、远端配置，电费、校园卡、图书馆这类各校不一样的东西也不做。
 - 不收录各校适配器，各校自己 fork 维护。
-- 没有网络层：HTTP 怎么发你自己选，框架只管把错误统一展示出来。
+- 没有网络层：HTTP 由接入方自行选型，框架只负责把错误统一展示。
 
 ## 许可证
 

@@ -1,6 +1,6 @@
-# 接入指南：把 UniPocket 变成你学校的课表 App
+# 接入指南：把 UniPocket 变成本校的课表 App
 
-这份指南假设你会写 Kotlin。整体只有四步：**改名 → 填学期与节次 → 写数据源 → 接进 demo**。
+这份指南假设读者会写 Kotlin。整体只有四步：**改名 → 填学期与节次 → 写数据源 → 接进 demo**。
 课表网格、周翻页、课程详情这些界面代码一行都不用改。
 
 ---
@@ -18,10 +18,10 @@
 
 ```bash
 # 先看一眼会改哪些文件
-./tools/rename.sh --package com.yourschool.pocket --app-name "你的课程表" --dry-run
+./tools/rename.sh --package com.yourschool.pocket --app-name "××大学课程表" --dry-run
 
 # 确认后执行
-./tools/rename.sh --package com.yourschool.pocket --app-name "你的课程表"
+./tools/rename.sh --package com.yourschool.pocket --app-name "××大学课程表"
 
 ./gradlew :demo:assembleDebug
 ```
@@ -37,7 +37,7 @@
 ## 2. 填学期与节次
 
 数据模型没有「SchoolConfig」这种大配置对象——**节次表（`Period` 列表）和学期（`Semester`）**
-是两个独立的东西，在各处分别传入。打开 `demo/src/main/kotlin/.../FakeData.kt` 换成你们的：
+是两个独立的东西，在各处分别传入。打开 `demo/src/main/kotlin/.../FakeData.kt`，换成学校的实际数据：
 
 ```kotlin
 val periods = listOf(
@@ -138,7 +138,7 @@ val source = MergedScheduleSource(EasSource(), GmsSource(), ManualSource())
 
 ## 4. 接进 demo
 
-把假数据源换成你的即可——加载、缓存、翻周、错误态都由框架的 `ScheduleViewModel` 负责。
+把假数据源换成实际数据源即可——加载、缓存、翻周、错误态都由框架的 `ScheduleViewModel` 负责。
 demo 的 `TimetableTab` 就是完整范例，核心接线长这样：
 
 ```kotlin
@@ -163,7 +163,7 @@ state.error?.let { UniPocketErrorBanner(error = it, onRetry = viewModel::retry) 
 
 ScheduleGrid(
     slots = state.sessions.expandByWeek(state.week),
-    periods = periods,                                   // 你在第 2 步填的节次表
+    periods = periods,                                   // 第 2 步填的节次表
     prefs = prefs,                                       // UiPrefs，见 4.6
     weekMonday = ScheduleText.mondayOf(semester.startDate, state.week),
     conflictChoices = emptyList(),
@@ -256,7 +256,7 @@ val prefs by repository.prefs.collectAsStateWithLifecycle()
 
 设置页 UI 在 `feature-settings`（可选模块），读写都走这个 repository
 （`setDarkMode` / `setShowWeekend` / `setBackground` / …）。不需要设置页时删掉模块即可；
-但**只要你想保留用户偏好**，`UiPrefsRepository` 与 `PrefsStore` 实现仍要留在 App 里——
+但**只要需要保留用户偏好**，`UiPrefsRepository` 与 `PrefsStore` 实现仍要留在 App 里——
 它们属于核心层，不在设置模块内。
 
 课表网格的显示项（周末列数、格子密度、字号、描边、配色模式、正在上课描边…）全部收敛在
@@ -311,8 +311,8 @@ class MyWeekWidget : AppWidgetProvider() {
 **改尺寸验证**：`WidgetPreviewActivity` 可以在不装桌面的情况下按任意尺寸预览：
 
 ```bash
-adb shell am start -n <你的包名>/.WidgetPreviewActivity --ei width 342 --ei height 380
-adb shell am start -n <你的包名>/.WidgetPreviewActivity --es type today --ei width 250 --ei height 150
+adb shell am start -n <包名>/.WidgetPreviewActivity --ei width 342 --ei height 380
+adb shell am start -n <包名>/.WidgetPreviewActivity --es type today --ei width 250 --ei height 150
 ```
 
 今天组件用 `TodayWidgetRenderer.render(context, sessions, periods, week, date, now, …)`，
@@ -339,7 +339,7 @@ AppBackground(painter = painter, backgroundScrim = prefs.backgroundScrim) { AppS
 ## 4.9 手动补录/编辑（可选）
 
 补录是一个独立的数据源：实现 `EditableScheduleSource`（按**条**增删改：`upsert(session)` /
-`delete(id)` / `manages(id)`），持久化完全归你。然后把「合并后的读取来源」和「编辑来源」
+`delete(id)` / `manages(id)`），持久化完全归实现者。然后把「合并后的读取来源」和「编辑来源」
 分开交给 ViewModel：
 
 ```kotlin
@@ -371,7 +371,7 @@ demo 的 `ManualCourseSource`（JSON 存 SharedPreferences）可以直接抄。
 - [ ] 周末有课/没课两种情况都正常
 - [ ] 断网时界面不崩溃，有可读的错误提示
 - [ ] **没有把**学号、密码、keystore、校园网凭据、完整房间表提交进仓库
-- [ ] 公共仓库里 `grep -ri zzu`（或你学校的标识）没有任何命中
+- [ ] 公共仓库里 `grep -ri zzu`（或本校标识）没有任何命中
 
 最后一条由 CI 自动检查（见 `.github/workflows/ci.yml`）。
 
