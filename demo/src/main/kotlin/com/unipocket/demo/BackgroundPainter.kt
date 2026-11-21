@@ -16,7 +16,7 @@ import kotlinx.coroutines.withContext
 import kotlin.math.max
 
 /**
- * 把偏好里的背景图 URI 解码成 Compose 的 [Painter]。
+ * 把偏好里的背景图路径解码成 Compose 的 [Painter]。
  *
  * 框架只管画（[com.unipocket.ui.AppBackground]），解码与权限归 App——
  * 这样框架不必引入图片库。这里给接入方一份可直接抄的参考实现：
@@ -24,21 +24,28 @@ import kotlin.math.max
  * - 先读尺寸再按需降采样，避免把 5000px 的照片整张读进内存。
  */
 @Composable
-fun rememberBackgroundPainter(uri: String?): Painter? {
+fun rememberBackgroundPainter(path: String?): Painter? {
     val context = LocalContext.current
-    val painter by produceState<Painter?>(initialValue = null, uri) {
-        value = if (uri.isNullOrBlank()) {
+    val painter by produceState<Painter?>(initialValue = null, path) {
+        value = if (path.isNullOrBlank()) {
             null
         } else {
             withContext(Dispatchers.IO) {
-                loadScaledBitmap(context, Uri.parse(uri))?.let { BitmapPainter(it.asImageBitmap()) }
+                loadScaledBitmap(context, path)?.let { BitmapPainter(it.asImageBitmap()) }
             }
         }
     }
     return painter
 }
 
-private fun loadScaledBitmap(context: Context, uri: Uri): Bitmap? = runCatching {
+private fun loadScaledBitmap(context: Context, path: String): Bitmap? = runCatching {
+    val uri = if (path.startsWith("content:") || path.startsWith("file:")) {
+        Uri.parse(path)
+    } else {
+        // 裸路径按本地文件处理（背景图常见形态）
+        Uri.parse("file://$path")
+    }
+
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     openStream(context, uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null

@@ -4,7 +4,6 @@ import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -21,12 +20,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.unipocket.domain.DarkMode
-import com.unipocket.domain.PrefsRepository
+import com.unipocket.domain.prefs.UiPrefsRepository
 import com.unipocket.ui.AppBackground
 import com.unipocket.ui.AppShell
 import com.unipocket.ui.AppTab
-import com.unipocket.ui.UniPocketTheme
+import com.unipocket.ui.theme.UniPocketTheme
 
 private val demoTabs = listOf(
     AppTab(id = "today", label = "今天"),
@@ -37,7 +35,7 @@ private val demoTabs = listOf(
 )
 
 /**
- * demo 入口：偏好存储 → 主题 → 可配置底栏 → 三个页面。
+ * demo 入口：偏好存储 → 主题 → 可配置底栏 → 五个页面。
  *
  * 想加自己的页面（电费、一卡通……）只需要往 [demoTabs] 里加一项、
  * 在下面的 `when` 里加一个分支，不用改框架。
@@ -56,36 +54,34 @@ class MainActivity : ComponentActivity() {
 private fun DemoApp() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val prefsRepository = remember {
-        PrefsRepository(
+    val uiPrefsRepository = remember {
+        UiPrefsRepository(
             store = SharedPreferencesPrefsStore(
                 context.getSharedPreferences("unipocket_demo", Context.MODE_PRIVATE),
             ),
             scope = scope,
         )
     }
-    LaunchedEffect(prefsRepository) {
-        prefsRepository.start()
+    LaunchedEffect(uiPrefsRepository) {
+        uiPrefsRepository.start()
     }
-    val prefs by prefsRepository.prefs.collectAsStateWithLifecycle()
+    val prefs by uiPrefsRepository.prefs.collectAsStateWithLifecycle()
 
-    val darkTheme = when (prefs.darkMode) {
-        DarkMode.SYSTEM -> isSystemInDarkTheme()
-        DarkMode.LIGHT -> false
-        DarkMode.DARK -> true
-    }
-
-    val backgroundPainter = rememberBackgroundPainter(prefs.backgroundUri)
+    val backgroundPainter = rememberBackgroundPainter(prefs.backgroundPath)
     val hasBackground = backgroundPainter != null
 
     UniPocketTheme(
-        darkTheme = darkTheme,
-        seedColor = Color(prefs.themeSeed),
+        darkMode = prefs.darkMode,
+        preset = prefs.themePreset,
+        darkContrast = prefs.darkContrast,
+        darkTinted = prefs.darkTinted,
     ) {
         // 背景图在 AppShell 之下，Scaffold 需要透明才能透出来
         AppBackground(
             painter = backgroundPainter,
-            dim = prefs.backgroundDim,
+            backgroundOpacity = prefs.backgroundOpacity,
+            backgroundBlur = prefs.backgroundBlur,
+            backgroundScrim = prefs.backgroundScrim,
         ) {
             var selectedTabId by rememberSaveable { mutableStateOf(demoTabs.first().id) }
 
@@ -108,7 +104,7 @@ private fun DemoApp() {
                 when (tab.id) {
                     "rooms" -> RoomTab()
                     "focus" -> FocusTab()
-                    "settings" -> SettingsTab(prefsRepository)
+                    "settings" -> SettingsTab(uiPrefsRepository)
                     "schedule" -> TimetableTab(prefs = prefs)
                     else -> TodayTab()
                 }

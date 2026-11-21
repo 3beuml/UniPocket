@@ -8,12 +8,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.unipocket.domain.PrefsRepository
+import com.unipocket.domain.prefs.UiPrefsRepository
 import com.unipocket.feature.settings.SettingsScreen
 
 /** 设置页：把偏好仓储接到框架提供的设置界面上 */
 @Composable
-fun SettingsTab(repository: PrefsRepository, modifier: Modifier = Modifier) {
+fun SettingsTab(repository: UiPrefsRepository, modifier: Modifier = Modifier) {
     val prefs by repository.prefs.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
@@ -26,22 +26,22 @@ fun SettingsTab(repository: PrefsRepository, modifier: Modifier = Modifier) {
                     Intent.FLAG_GRANT_READ_URI_PERMISSION,
                 )
             }
-            repository.setBackgroundUri(uri.toString())
+            repository.setBackground(uri.toString())
         }
     }
 
     SettingsScreen(
         prefs = prefs,
         onDarkModeChange = repository::setDarkMode,
-        onThemeSeedChange = repository::setThemeSeed,
+        onThemePresetChange = { repository.setThemePreset(it) },
         onShowWeekendChange = repository::setShowWeekend,
-        onShowTeacherChange = repository::setShowTeacher,
-        onShowRoomChange = repository::setShowRoom,
+        onCourseTextModeChange = repository::setCourseTextMode,
         onPickBackground = { pickImage.launch(arrayOf("image/*")) },
-        onClearBackground = { repository.setBackgroundUri(null) },
-        onToggleBackgroundDim = repository::setBackgroundDim,
-        onWidgetShowRoomChange = repository::setWidgetShowRoom,
-        onWidgetShowTimeChange = repository::setWidgetShowTime,
+        onClearBackground = { repository.clearBackground() },
+        onBackgroundScrimChange = repository::setBackgroundScrim,
+        onWidgetWeekShowPlaceChange = repository::setWidgetWeekShowPlace,
+        onWidgetWeekShowTimeChange = repository::setWidgetWeekShowTime,
+        onWidgetWeekendStripChange = repository::setWidgetWeekendStrip,
         modifier = modifier,
     )
 }

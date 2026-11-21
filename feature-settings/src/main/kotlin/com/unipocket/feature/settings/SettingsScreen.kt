@@ -31,17 +31,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.unipocket.domain.DarkMode
-import com.unipocket.domain.SchedulePrefs
+import com.unipocket.domain.prefs.CourseTextMode
+import com.unipocket.domain.prefs.DarkMode
+import com.unipocket.domain.prefs.ThemePreset
+import com.unipocket.domain.prefs.UiPrefs
 
-/** 预设主题色：每项是一个种子色，Material You 会据此生成整套配色 */
-private val ThemePresets: List<Pair<String, Int>> = listOf(
-    "靛蓝" to 0xFF4F6BED.toInt(),
-    "青绿" to 0xFF2E7D32.toInt(),
-    "琥珀" to 0xFFD97706.toInt(),
-    "玫红" to 0xFFC2185B.toInt(),
-    "棕褐" to 0xFF6D4C41.toInt(),
-    "石板" to 0xFF455A64.toInt(),
+/** 配色预设：与 UiPrefs.ThemePreset 一一对应 */
+private val ThemePresets: List<Pair<String, ThemePreset>> = listOf(
+    "动态" to ThemePreset.DYNAMIC,
+    "紫" to ThemePreset.PURPLE,
+    "蓝" to ThemePreset.BLUE,
+    "青" to ThemePreset.TEAL,
+    "绿" to ThemePreset.GREEN,
+    "琥珀" to ThemePreset.AMBER,
+    "粉" to ThemePreset.PINK,
+    "灰" to ThemePreset.GRAPHITE,
 )
 
 /**
@@ -53,17 +57,17 @@ private val ThemePresets: List<Pair<String, Int>> = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    prefs: SchedulePrefs,
+    prefs: UiPrefs,
     onDarkModeChange: (DarkMode) -> Unit,
-    onThemeSeedChange: (Int) -> Unit,
+    onThemePresetChange: (ThemePreset) -> Unit,
     onShowWeekendChange: (Boolean) -> Unit,
-    onShowTeacherChange: (Boolean) -> Unit,
-    onShowRoomChange: (Boolean) -> Unit,
+    onCourseTextModeChange: (CourseTextMode) -> Unit,
     onPickBackground: () -> Unit,
     onClearBackground: () -> Unit,
-    onToggleBackgroundDim: (Boolean) -> Unit,
-    onWidgetShowRoomChange: (Boolean) -> Unit,
-    onWidgetShowTimeChange: (Boolean) -> Unit,
+    onWidgetWeekShowPlaceChange: (Boolean) -> Unit,
+    onWidgetWeekShowTimeChange: (Boolean) -> Unit,
+    onWidgetWeekendStripChange: (Boolean) -> Unit,
+    onBackgroundScrimChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -102,21 +106,21 @@ fun SettingsScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             items(ThemePresets.size) { index ->
-                val (name, seed) = ThemePresets[index]
-                val selected = prefs.themeSeed == seed
+                val (name, preset) = ThemePresets[index]
+                val selected = prefs.themePreset == preset
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(
                         Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(Color(seed))
+                            .background(Color(preset.seedArgb ?: 0xFF6750A4.toInt()))
                             .border(
                                 width = if (selected) 3.dp else 1.dp,
                                 color = if (selected) MaterialTheme.colorScheme.onSurface
                                 else MaterialTheme.colorScheme.outlineVariant,
                                 shape = CircleShape,
                             )
-                            .clickable { onThemeSeedChange(seed) },
+                            .clickable { onThemePresetChange(preset) },
                     )
                     Text(
                         text = name,
@@ -142,7 +146,7 @@ fun SettingsScreen(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = if (prefs.backgroundUri != null) "已设置背景图" else "未设置背景图",
+                    text = if (prefs.backgroundPath != null) "已设置背景图" else "未设置背景图",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
@@ -152,17 +156,17 @@ fun SettingsScreen(
                 )
             }
             TextButton(onClick = onPickBackground) {
-                Text(if (prefs.backgroundUri != null) "更换" else "选择")
+                Text(if (prefs.backgroundPath != null) "更换" else "选择")
             }
-            if (prefs.backgroundUri != null) {
+            if (prefs.backgroundPath != null) {
                 TextButton(onClick = onClearBackground) { Text("移除") }
             }
         }
         SwitchRow(
             title = "背景变暗",
             subtitle = "在图片上盖一层遮罩，保证文字清晰",
-            checked = prefs.backgroundDim,
-            onCheckedChange = onToggleBackgroundDim,
+            checked = prefs.backgroundScrim > 0.01f,
+            onCheckedChange = { onBackgroundScrimChange(if (it) 0.4f else 0.01f) },
         )
 
         Spacer(Modifier.height(16.dp))
@@ -177,16 +181,10 @@ fun SettingsScreen(
             onCheckedChange = onShowWeekendChange,
         )
         SwitchRow(
-            title = "显示教师",
-            subtitle = "在课程块里显示教师姓名",
-            checked = prefs.showTeacher,
-            onCheckedChange = onShowTeacherChange,
-        )
-        SwitchRow(
-            title = "显示教室",
-            subtitle = "在课程块里显示教室",
-            checked = prefs.showRoom,
-            onCheckedChange = onShowRoomChange,
+            title = "显示周末",
+            subtitle = "关闭后课表只显示周一到周五",
+            checked = prefs.showWeekend,
+            onCheckedChange = onShowWeekendChange,
         )
 
         Spacer(Modifier.height(16.dp))
@@ -197,14 +195,14 @@ fun SettingsScreen(
         SwitchRow(
             title = "组件显示教室",
             subtitle = "桌面组件课程块与明细里的教室",
-            checked = prefs.widgetShowRoom,
-            onCheckedChange = onWidgetShowRoomChange,
+            checked = prefs.widgetWeekShowPlace,
+            onCheckedChange = onWidgetWeekShowPlaceChange,
         )
         SwitchRow(
             title = "组件显示时间",
             subtitle = "节次列的时刻、周末明细条的时间",
-            checked = prefs.widgetShowTime,
-            onCheckedChange = onWidgetShowTimeChange,
+            checked = prefs.widgetWeekShowTime,
+            onCheckedChange = onWidgetWeekShowTimeChange,
         )
 
         Spacer(Modifier.height(24.dp))

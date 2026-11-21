@@ -27,7 +27,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.unipocket.domain.Course
 import com.unipocket.domain.MergedScheduleSource
-import com.unipocket.domain.SchedulePrefs
+import com.unipocket.domain.prefs.UiPrefs
+import com.unipocket.domain.prefs.CourseTextMode
 import com.unipocket.ui.common.UniPocketErrorBanner
 import com.unipocket.ui.schedule.CourseEditorDialog
 import com.unipocket.ui.schedule.ScheduleViewModel
@@ -41,7 +42,7 @@ import com.unipocket.ui.schedule.WeekTimetable
  * [FakeScheduleSource] 换成自己的教务来源即可，补录部分不用动。
  */
 @Composable
-fun TimetableTab(prefs: SchedulePrefs, modifier: Modifier = Modifier) {
+fun TimetableTab(prefs: UiPrefs, modifier: Modifier = Modifier) {
     val config = FakeData.config
     val context = LocalContext.current
     val manualSource = remember {
@@ -82,8 +83,8 @@ fun TimetableTab(prefs: SchedulePrefs, modifier: Modifier = Modifier) {
                 week = state.week,
                 modifier = Modifier.fillMaxSize(),
                 showWeekend = prefs.showWeekend,
-                showTeacher = prefs.showTeacher,
-                showRoom = prefs.showRoom,
+                
+                showRoom = prefs.courseTextMode == CourseTextMode.NAME_ROOM,
                 onCourseClick = { selectedCourse = it },
             )
 
