@@ -42,6 +42,7 @@ import com.unipocket.domain.prefs.BlockBorder
 import com.unipocket.domain.prefs.CourseTextMode
 import com.unipocket.domain.prefs.CourseColorMode
 import com.unipocket.domain.prefs.UiPrefs
+import com.unipocket.ui.nav.DOCK_CLEARANCE
 import com.unipocket.ui.theme.rememberEffectiveDark
 import java.time.LocalDate
 import java.time.LocalTime
@@ -157,7 +158,7 @@ fun ScheduleGrid(
                     )
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(DOCK_CLEARANCE))
         }
     }
 }
