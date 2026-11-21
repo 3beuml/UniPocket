@@ -79,9 +79,9 @@ fun List<Session>.todayItems(
 ): List<TodayItem> =
     filter { it.weekday == dayOfWeek }
         .mapNotNull { session ->
-            val start = resolveTime(periods, session.startUnit, session.startTime)
+            val start = resolveTime(periods, session.startUnit, session.startTime, useEnd = false)
                 ?: return@mapNotNull null
-            val end = resolveTime(periods, session.endUnit, session.endTime)
+            val end = resolveTime(periods, session.endUnit, session.endTime, useEnd = true)
                 ?: return@mapNotNull null
             val status = when {
                 now >= end -> TodayStatus.FINISHED
@@ -99,8 +99,9 @@ fun List<Session>.todayItems(
 fun List<TodayItem>.nextUpcoming(): TodayItem? = firstOrNull { it.status != TodayStatus.FINISHED }
 
 /** 节次表查得到就按表（`800` = 08:00），查不到退回 Session 自带的 "08:00" 文本 */
-private fun resolveTime(periods: List<Period>, unit: Int, fallback: String?): LocalTime? {
+private fun resolveTime(periods: List<Period>, unit: Int, fallback: String?, useEnd: Boolean): LocalTime? {
     val period = periods.firstOrNull { it.indexNo == unit }
-    if (period != null) return LocalTime.of(period.startTime / 100, period.startTime % 100)
+    val hhmm = if (useEnd) period?.endTime else period?.startTime
+    if (hhmm != null) return LocalTime.of(hhmm / 100, hhmm % 100)
     return fallback?.let { runCatching { LocalTime.parse(it) }.getOrNull() }
 }

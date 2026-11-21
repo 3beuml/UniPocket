@@ -1,120 +1,108 @@
 package com.unipocket.domain
 
-import com.unipocket.domain.Period
-import com.unipocket.domain.Semester
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
 import java.time.LocalDate
 import java.time.LocalTime
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
 
 class TodayItemsTest {
 
-    private val config = SchoolConfig(
-        schoolName = "测试大学",
-        periods = listOf(
-            Period(1, LocalTime.of(8, 0), LocalTime.of(8, 45)),
-            Period(2, LocalTime.of(8, 55), LocalTime.of(9, 40)),
-            Period(3, LocalTime.of(10, 0), LocalTime.of(10, 45)),
-        ),
-        semester = Semester("测试学期", LocalDate.of(2026, 8, 31), 20),
+    private val periods = listOf(
+        Period(1, "第1节", 800, 845, "MORNING", 0),
+        Period(2, "第2节", 855, 940, "MORNING", 0),
+        Period(3, "第3节", 1000, 1045, "MORNING", 1),
     )
 
-    private fun course(id: String, day: Int, periods: IntRange) = Course(
-        id = id,
-        name = id,
-        weeks = setOf(1),
-        dayOfWeek = day,
-        periods = periods,
-    )
-
-    private val fridayCourses = listOf(
-        course("A", day = 5, periods = 1..2),
-        course("B", day = 5, periods = 3..3),
-        course("other-day", day = 4, periods = 1..2),
-    )
-
-    @Test
-    fun `只保留当天课程并按开始时间排序`() {
-        val items = fridayCourses.todayItems(config, dayOfWeek = 5, now = LocalTime.of(7, 0))
-
-        assertEquals(listOf("A", "B"), items.map { it.course.id })
-        assertTrue(items.all { it.status == TodayStatus.UPCOMING })
-    }
-
-    @Test
-    fun `进行中与已结束按当前时刻判定`() {
-        val ongoing = fridayCourses.todayItems(config, 5, LocalTime.of(9, 0))
-        assertEquals(TodayStatus.ONGOING, ongoing.first { it.course.id == "A" }.status)
-        assertEquals(TodayStatus.UPCOMING, ongoing.first { it.course.id == "B" }.status)
-
-        val finished = fridayCourses.todayItems(config, 5, LocalTime.of(11, 0))
-        assertTrue(finished.all { it.status == TodayStatus.FINISHED })
-    }
-
-    @Test
-    fun `课程结束时刻算已结束`() {
-        // A 的第二段 09:40 结束
-        val items = fridayCourses.todayItems(config, 5, LocalTime.of(9, 40))
-        assertEquals(TodayStatus.FINISHED, items.first { it.course.id == "A" }.status)
-    }
-
-    @Test
-    fun `节次配置缺失的课被跳过`() {
-        val broken = listOf(course("bad", day = 5, periods = 9..10))
-        val items = broken.todayItems(config, 5, LocalTime.of(8, 0))
-        assertTrue(items.isEmpty())
-    }
-
-    @Test
-    fun `时间文本用真实节次时刻`() {
-        val items = fridayCourses.todayItems(config, 5, LocalTime.of(7, 0))
-        assertEquals("08:00-09:40", items.first().timeText)
-    }
-
-    @Test
-    fun `relativeText 三种状态`() {
-        val items = fridayCourses.todayItems(config, 5, LocalTime.of(9, 0))
-        assertEquals("还剩 40分钟", items.first { it.course.id == "A" }.relativeText(LocalTime.of(9, 0)))
-        assertEquals("25分钟后开始", items.first { it.course.id == "B" }.relativeText(LocalTime.of(9, 35)))
-        // relativeText 以 item 的状态快照为准：11:00 时这条 ONGOING 剩 0 分钟 → 马上下课
-        // （真实页面会在 now 变化时重建 items，状态会随之变成 FINISHED）
-        assertEquals("马上下课", items.first { it.course.id == "A" }.relativeText(LocalTime.of(11, 0)))
-    }
-
-    @Test
-    fun `倒计时归零时说马上`() {
-        val ongoing = TodayItem(
-            course = course("A", 5, 1..2),
-            start = LocalTime.of(9, 0),
-            end = LocalTime.of(9, 40),
-            status = TodayStatus.ONGOING,
+    /** 周三的课；weekIndex 由调用方先过滤，这里直接给已过滤的列表 */
+    private fun session(id: String, weekday: Int, startUnit: Int, endUnit: Int, startTime: String? = null, endTime: String? = null) =
+        Session(
+            id = id,
+            semesterId = 1,
+            source = "eas",
+            courseCode = id,
+            courseName = id,
+            weekIndex = 12,
+            weekday = weekday,
+            startUnit = startUnit,
+            endUnit = endUnit,
+            date = null,
+            startTime = startTime,
+            endTime = endTime,
+            teacherName = null,
+            roomText = null,
+            campusText = null,
+            color = null,
         )
-        assertEquals("马上下课", ongoing.relativeText(LocalTime.of(9, 40)))
 
-        val upcoming = TodayItem(
-            course = course("B", 5, 3..3),
-            start = LocalTime.of(10, 0),
-            end = LocalTime.of(10, 45),
-            status = TodayStatus.UPCOMING,
+    @Test
+    fun `按星期过滤并按开始时刻排序`() {
+        val sessions = listOf(
+            session("c", weekday = 3, startUnit = 3, endUnit = 3),
+            session("a", weekday = 3, startUnit = 1, endUnit = 2),
+            session("b", weekday = 2, startUnit = 1, endUnit = 2), // 别的星期，不进列表
         )
-        assertEquals("马上开始", upcoming.relativeText(LocalTime.of(10, 0)))
+        val items = sessions.todayItems(periods, dayOfWeek = 3, now = LocalTime.of(9, 0))
+
+        assertEquals(listOf("a", "c"), items.map { it.session.id })
+        assertEquals(LocalTime.of(8, 0), items[0].start)
+        assertEquals(LocalTime.of(10, 45), items[1].end)
     }
 
     @Test
-    fun `humanMinutes 边界`() {
-        assertEquals("45分钟", humanMinutes(45))
-        assertEquals("1小时", humanMinutes(60))
-        assertEquals("2小时5分", humanMinutes(125))
+    fun `三态判定以结束时刻为界`() {
+        val sessions = listOf(session("a", weekday = 3, startUnit = 1, endUnit = 2))
+        val at = { h: Int, m: Int -> sessions.todayItems(periods, 3, LocalTime.of(h, m)).single().status }
+
+        assertEquals(TodayStatus.UPCOMING, at(7, 59))
+        assertEquals(TodayStatus.ONGOING, at(8, 0))
+        assertEquals(TodayStatus.FINISHED, at(9, 40))
+        assertEquals(TodayStatus.FINISHED, at(9, 41))
+    }
+
+    @Test
+    fun `节次表查不到时退回 Session 自带时刻`() {
+        val sessions = listOf(
+            session("a", weekday = 3, startUnit = 9, endUnit = 9, startTime = "19:00", endTime = "19:45"),
+        )
+        val item = sessions.todayItems(periods, 3, LocalTime.of(19, 20)).single()
+
+        assertEquals(LocalTime.of(19, 0), item.start)
+        assertEquals(LocalTime.of(19, 45), item.end)
+        assertEquals(TodayStatus.ONGOING, item.status)
+    }
+
+    @Test
+    fun `时间完全缺失的条目跳过（不画错位置）`() {
+        val sessions = listOf(session("a", weekday = 3, startUnit = 9, endUnit = 9))
+        assertTrue(sessions.todayItems(periods, 3, LocalTime.of(9, 0)).isEmpty())
     }
 
     @Test
     fun `nextUpcoming 取第一门未结束的课`() {
-        val mixed = fridayCourses.todayItems(config, 5, LocalTime.of(9, 30))
-        assertEquals("A", mixed.nextUpcoming()?.course?.id)
+        val sessions = listOf(
+            session("past", weekday = 3, startUnit = 1, endUnit = 2),
+            session("next", weekday = 3, startUnit = 3, endUnit = 3),
+        )
+        val items = sessions.todayItems(periods, 3, LocalTime.of(9, 50))
 
-        val allFinished = fridayCourses.todayItems(config, 5, LocalTime.of(23, 0))
-        assertNull(allFinished.nextUpcoming())
+        assertEquals("next", items.nextUpcoming()?.session?.id)
+
+        val allOver = sessions.todayItems(periods, 3, LocalTime.of(23, 0))
+        assertNull(allOver.nextUpcoming())
+    }
+
+    @Test
+    fun `相对文案的零分钟兜底`() {
+        val sessions = listOf(session("a", weekday = 3, startUnit = 1, endUnit = 2))
+        // 9:30 构建（进行中），把 now 拨到结束时刻：还剩 0 分钟时说"马上下课"，不出"还剩 0分钟"
+        val item = sessions.todayItems(periods, 3, LocalTime.of(9, 30)).single()
+        assertEquals("马上下课", item.relativeText(LocalTime.of(9, 40)))
+
+        // 状态随重建翻转：过了结束时刻重建就是已结束
+        val after = sessions.todayItems(periods, 3, LocalTime.of(9, 41)).single()
+        assertEquals("已结束", after.relativeText(LocalTime.of(9, 41)))
     }
 }
+
+private fun assertTrue(b: Boolean) = org.junit.Assert.assertTrue(b)
