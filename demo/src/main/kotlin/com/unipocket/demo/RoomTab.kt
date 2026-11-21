@@ -28,7 +28,6 @@ fun RoomTab(modifier: Modifier = Modifier) {
         state = state,
         modifier = modifier.fillMaxSize(),
         onDaySelected = viewModel::setDayOfWeek,
-        onPeriodSelected = viewModel::setPeriod,
         onBuildingSelected = viewModel::setBuilding,
         onRetry = viewModel::retry,
     )
