@@ -19,18 +19,16 @@ demo 用的是假数据（`demo/src/main/kotlin/com/unipocket/demo/FakeData.kt`�
 
 ## 模块
 
-| 模块 | 管什么 | 必要性 |
-|---|---|---|
-| `core-domain` | 契约：`Session` / `Semester` / `Period`、`ScheduleSource` 接口、`UiPrefs` 偏好、统一错误类型。纯 Kotlin，没有数据库也没有网络 | 必选 |
-| `core-ui` | 课表网格、今天页、周翻页、错误/加载/空态、`AppShell` 底栏、主题与背景 | 必选 |
-| `feature-room` | 空教室页 | 可选 |
-| `feature-settings` | 外观与显示设置 | 可选 |
-| `feature-focus` | 番茄钟 | 可选 |
-| `widget` | 一周课表和今天的桌面小组件 | 可选 |
-| `demo` | 假数据 App，fork 后改它 | — |
+- `core-domain` — 契约与接口：`Session` / `Semester` / `Period`、`ScheduleSource`、`UiPrefs`、统一错误类型。纯 Kotlin
+- `core-ui` — 课表网格、今天页、周翻页、`AppShell` 底栏、主题
+- `feature-room` — 空教室页（可选）
+- `feature-settings` — 外观与显示设置（可选）
+- `feature-focus` — 番茄钟（可选）
+- `widget` — 桌面小组件：一周课表、今天列表（可选）
+- `demo` — 假数据 App，fork 后改它
 
-可选模块不要就删三处：`settings.gradle.kts` 里的 `include`、`demo/build.gradle.kts` 里的依赖、
-底栏里对应的 tab。删完它完全不参与构建，也不进 APK。
+可选模块不要就删三处：`settings.gradle.kts` 的 `include`、`demo/build.gradle.kts` 的依赖、
+底栏对应的 tab。删完不参与构建，也不进 APK。
 
 ## 接入自己学校
 
